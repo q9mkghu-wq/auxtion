@@ -2,13 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { getToken } from "firebase/messaging";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  onSnapshot,
+  query,
+} from "firebase/firestore";
 import { db, getFirebaseMessaging } from "../lib/firebase";
 
 export default function HomePage() {
   const [pushStatus, setPushStatus] = useState("확인중");
   const [token, setToken] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadingList, setLoadingList] = useState(true);
+  const [watchConditions, setWatchConditions] = useState([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -27,6 +35,36 @@ export default function HomePage() {
     } else {
       setPushStatus("unsupported");
     }
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "watchConditions"));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        items.sort((a, b) => {
+          const aSec = a.createdAt?.seconds || 0;
+          const bSec = b.createdAt?.seconds || 0;
+          return bSec - aSec;
+        });
+
+        setWatchConditions(items);
+        setLoadingList(false);
+      },
+      (error) => {
+        console.error(error);
+        setLoadingList(false);
+        alert("관심조건 목록을 불러오는 중 오류가 발생했어요.");
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
   const handleEnablePush = async () => {
@@ -176,7 +214,7 @@ export default function HomePage() {
         fontFamily: "Arial, sans-serif",
       }}
     >
-      <div style={{ maxWidth: "980px", margin: "0 auto" }}>
+      <div style={{ maxWidth: "1080px", margin: "0 auto" }}>
         <section
           style={{
             background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
@@ -235,6 +273,7 @@ export default function HomePage() {
             display: "grid",
             gridTemplateColumns: "1.2fr 0.8fr",
             gap: "16px",
+            marginBottom: "24px",
           }}
         >
           <div style={cardStyle}>
@@ -331,45 +370,4 @@ export default function HomePage() {
 
           <div style={{ display: "grid", gap: "16px" }}>
             <div style={cardStyle}>
-              <h2 style={{ marginTop: 0 }}>현재 상태</h2>
-
-              <p style={{ margin: "8px 0", color: "#64748b" }}>푸시 알림</p>
-              <p style={{ margin: 0, fontWeight: 700, color: badgeColor }}>
-                {pushStatus}
-              </p>
-
-              <p style={{ margin: "16px 0 8px", color: "#64748b" }}>관심 플랫폼</p>
-              <p style={{ margin: 0, fontWeight: 700 }}>
-                {form.platforms.length ? form.platforms.join(", ") : "선택 안 됨"}
-              </p>
-
-              <p style={{ margin: "16px 0 8px", color: "#64748b" }}>물건 유형</p>
-              <p style={{ margin: 0, fontWeight: 700 }}>
-                {form.propertyTypes.length
-                  ? form.propertyTypes.join(", ")
-                  : "선택 안 됨"}
-              </p>
-            </div>
-
-            <div style={cardStyle}>
-              <h2 style={{ marginTop: 0 }}>현재 기기 푸시 토큰</h2>
-              <div
-                style={{
-                  marginTop: "12px",
-                  background: "#0f172a",
-                  color: "#e2e8f0",
-                  padding: "16px",
-                  borderRadius: "12px",
-                  fontSize: "12px",
-                  wordBreak: "break-all",
-                }}
-              >
-                {token || "아직 토큰이 없습니다. '알림 허용하기'를 눌러주세요."}
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </main>
-  );
-}
+              <h2 style={{ marginTop: 0 }}><span class="cursor">█</span>
