@@ -3,13 +3,15 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const apiKey = process.env.DATA_GO_KR_API_KEY;
-    
-    // 처음 신청했던 '물건정보 조회서비스'의 목록 함수로 테스트
+
+    // prptDivCd=10 (공고상세조회용 통합코드) 대신 
+    // 물건목록조회용 기본값(공백 또는 제외)으로 테스트
     const url = 
-      "https://apis.data.go.kr/B010003/OnbidPbancCltrDtlSrvc2/getPbancCltrInf2" +
+      "https://apis.data.go.kr/B010003/OnbidRlstListSrvc2/getRlstCltrList2" +
       `?serviceKey=${apiKey}` +
       `&numOfRows=10&pageNo=1&resultType=json` +
-      `&pbancMngNo=123456`; // 테스트용 더미 번호
+      `&prptDivCd=01` + // 부동산 기본코드
+      `&pvctTrgtYn=N`;
 
     const res = await fetch(url, { cache: "no-store" });
     const text = await res.text();
