@@ -4,13 +4,15 @@ export async function GET() {
   try {
     const apiKey = process.env.DATA_GO_KR_API_KEY;
 
-    // 모든 재산유형(비워둠)과 기본 필수값만 넣어서 호출
+    // 문서의 필수값(1)들을 모두 정확히 채운 호출 주소
     const url = 
       "https://apis.data.go.kr/B010003/OnbidRlstListSrvc2/getRlstCltrList2" +
       `?serviceKey=${apiKey}` +
-      "&numOfRows=10&pageNo=1&resultType=json" +
-      "&prptDivCd=" + // 비워둠
-      "&pvctTrgtYn=N";
+      "&pageNo=1" +
+      "&numOfRows=10" +
+      "&resultType=json" +
+      "&prptDivCd=01" + // 01: 국유재산 (가장 흔함)
+      "&pvctTrgtYn=N";  // 수의계약 대상여부 (기본 N)
 
     const res = await fetch(url, { cache: "no-store" });
     const text = await res.text();
