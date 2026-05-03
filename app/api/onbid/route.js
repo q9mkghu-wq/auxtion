@@ -4,12 +4,12 @@ export async function GET() {
   try {
     const apiKey = process.env.DATA_GO_KR_API_KEY;
     
-    // 가장 기본이 되는 다른 오퍼레이션(목록조회)으로 테스트
+    // 처음 신청했던 '물건정보 조회서비스'의 목록 함수로 테스트
     const url = 
-      "https://apis.data.go.kr/B010003/OnbidRlstListSrvc2/getRlstCltrList2" +
+      "https://apis.data.go.kr/B010003/OnbidPbancCltrDtlSrvc2/getPbancCltrInf2" +
       `?serviceKey=${apiKey}` +
       `&numOfRows=10&pageNo=1&resultType=json` +
-      `&prptDivCd=01&pvctTrgtYn=N`;
+      `&pbancMngNo=123456`; // 테스트용 더미 번호
 
     const res = await fetch(url, { cache: "no-store" });
     const text = await res.text();
