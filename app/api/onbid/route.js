@@ -16,7 +16,7 @@ export async function GET(request) {
     }
 
     const url =
-      "https://apis.data.go.kr/1360000/OnbidThingInfoInquireSvc/getThingInfoBidInfor" +
+      "https://apis.data.go.kr/B010003/OnbidPbancCltrDtlSrvc2/getPbctClturInfo" +
       `?serviceKey=${apiKey}` +
       `&numOfRows=${numOfRows}` +
       `&pageNo=${pageNo}` +
