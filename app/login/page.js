@@ -47,20 +47,7 @@ export default function LoginPage() {
       router.push("/");
     } catch (error) {
       console.error(error);
-
-      if (error.code === "auth/email-already-in-use") {
-        alert("이미 가입된 이메일이에요.");
-      } else if (error.code === "auth/invalid-email") {
-        alert("이메일 형식이 올바르지 않아요.");
-      } else if (error.code === "auth/user-not-found") {
-        alert("가입되지 않은 이메일이에요.");
-      } else if (error.code === "auth/wrong-password") {
-        alert("비밀번호가 틀렸어요.");
-      } else if (error.code === "auth/invalid-credential") {
-        alert("이메일 또는 비밀번호를 다시 확인하세요.");
-      } else {
-        alert("처리 중 오류가 발생했어요.");
-      }
+      alert(error.code || error.message || "처리 중 오류가 발생했어요.");
     } finally {
       setLoading(false);
     }
