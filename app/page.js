@@ -370,4 +370,97 @@ export default function HomePage() {
 
           <div style={{ display: "grid", gap: "16px" }}>
             <div style={cardStyle}>
-              <h2 style={{ marginTop: 0 }}><span class="cursor">█</span>
+              <h2 style={{ marginTop: 0 }}>현재 상태</h2>
+
+              <p style={{ margin: "8px 0", color: "#64748b" }}>푸시 알림</p>
+              <p style={{ margin: 0, fontWeight: 700, color: badgeColor }}>
+                {pushStatus}
+              </p>
+
+              <p style={{ margin: "16px 0 8px", color: "#64748b" }}>관심 플랫폼</p>
+              <p style={{ margin: 0, fontWeight: 700 }}>
+                {form.platforms.length ? form.platforms.join(", ") : "선택 안 됨"}
+              </p>
+
+              <p style={{ margin: "16px 0 8px", color: "#64748b" }}>물건 유형</p>
+              <p style={{ margin: 0, fontWeight: 700 }}>
+                {form.propertyTypes.length ? form.propertyTypes.join(", ") : "선택 안 됨"}
+              </p>
+            </div>
+
+            <div style={cardStyle}>
+              <h2 style={{ marginTop: 0 }}>현재 기기 푸시 토큰</h2>
+              <div
+                style={{
+                  marginTop: "12px",
+                  background: "#0f172a",
+                  color: "#e2e8f0",
+                  padding: "16px",
+                  borderRadius: "12px",
+                  fontSize: "12px",
+                  wordBreak: "break-all",
+                }}
+              >
+                {token || "아직 토큰이 없습니다. '알림 허용하기'를 눌러주세요."}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section style={cardStyle}>
+          <h2 style={{ marginTop: 0, marginBottom: "16px" }}>저장된 관심조건 목록</h2>
+
+          {loadingList ? (
+            <p style={{ color: "#64748b" }}>불러오는 중...</p>
+          ) : watchConditions.length === 0 ? (
+            <p style={{ color: "#64748b" }}>아직 저장된 관심조건이 없습니다.</p>
+          ) : (
+            <div style={{ display: "grid", gap: "12px" }}>
+              {watchConditions.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "14px",
+                    padding: "16px",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <div style={{ fontSize: "18px", fontWeight: 700 }}>
+                    {item.name || "이름 없음"}
+                  </div>
+
+                  <div style={{ marginTop: "10px", color: "#475569", lineHeight: 1.8 }}>
+                    <div>
+                      <strong>플랫폼:</strong>{" "}
+                      {Array.isArray(item.platforms) && item.platforms.length > 0
+                        ? item.platforms.join(", ")
+                        : "-"}
+                    </div>
+                    <div>
+                      <strong>물건 유형:</strong>{" "}
+                      {Array.isArray(item.propertyTypes) && item.propertyTypes.length > 0
+                        ? item.propertyTypes.join(", ")
+                        : "-"}
+                    </div>
+                    <div>
+                      <strong>지역 키워드:</strong> {item.regionKeyword || "-"}
+                    </div>
+                    <div>
+                      <strong>최소 가격:</strong>{" "}
+                      {item.minPrice ? Number(item.minPrice).toLocaleString() + "원" : "-"}
+                    </div>
+                    <div>
+                      <strong>최대 가격:</strong>{" "}
+                      {item.maxPrice ? Number(item.maxPrice).toLocaleString() + "원" : "-"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
