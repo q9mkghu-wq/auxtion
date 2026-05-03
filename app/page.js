@@ -357,20 +357,39 @@ export default function HomePage() {
                 로그인 / 회원가입
               </button>
             ) : (
-              <button
-                onClick={handleLogout}
-                style={{
-                  border: "none",
-                  background: "#111827",
-                  color: "white",
-                  padding: "12px 18px",
-                  borderRadius: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                로그아웃
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    window.location.href = "/profile";
+                  }}
+                  style={{
+                    border: "none",
+                    background: "#0f766e",
+                    color: "white",
+                    padding: "12px 18px",
+                    borderRadius: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  내 프로필
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    border: "none",
+                    background: "#111827",
+                    color: "white",
+                    padding: "12px 18px",
+                    borderRadius: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  로그아웃
+                </button>
+              </>
             )}
           </div>
         </section>
