@@ -16,11 +16,11 @@ export async function GET(request) {
     }
 
     const url =
-      "https://apis.data.go.kr/1360000/OnbidPblsalThingInfoInquireSvc/getOnbidPblsalThingInfo" +
+      "https://apis.data.go.kr/1360000/OnbidThingInfoInquireSvc/getThingInfoBidInfor" +
       `?serviceKey=${apiKey}` +
       `&numOfRows=${numOfRows}` +
       `&pageNo=${pageNo}` +
-      `&resultType=json`;
+      `&type=json`;
 
     const res = await fetch(url, { cache: "no-store" });
     const text = await res.text();
@@ -33,7 +33,7 @@ export async function GET(request) {
         {
           ok: false,
           error: "공공데이터 응답이 JSON이 아닙니다.",
-          raw: text.slice(0, 500),
+          raw: text.slice(0, 800),
         },
         { status: 500 }
       );
