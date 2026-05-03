@@ -413,4 +413,210 @@ export default function HomePage() {
               />
 
               <label style={labelStyle}>플랫폼</label>
-              <div style={{ marginTop<span class="cursor">█</span>
+              <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
+                {["법원경매", "온비드 공매"].map((item) => (
+                  <label key={item} style={{ fontSize: "14px" }}>
+                    <input
+                      type="checkbox"
+                      checked={form.platforms.includes(item)}
+                      onChange={() => toggleCheckbox("platforms", item)}
+                      style={{ marginRight: "8px" }}
+                    />
+                    {item}
+                  </label>
+                ))}
+              </div>
+
+              <label style={labelStyle}>물건 유형</label>
+              <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
+                {["아파트·주택", "상가·오피스", "토지", "기타"].map((item) => (
+                  <label key={item} style={{ fontSize: "14px" }}>
+                    <input
+                      type="checkbox"
+                      checked={form.propertyTypes.includes(item)}
+                      onChange={() => toggleCheckbox("propertyTypes", item)}
+                      style={{ marginRight: "8px" }}
+                    />
+                    {item}
+                  </label>
+                ))}
+              </div>
+
+              <label style={labelStyle}>지역 키워드</label>
+              <input
+                style={inputStyle}
+                name="regionKeyword"
+                value={form.regionKeyword}
+                onChange={handleChange}
+                placeholder="예: 서울, 강남, 수원"
+              />
+
+              <label style={labelStyle}>최소 가격</label>
+              <input
+                style={inputStyle}
+                type="number"
+                name="minPrice"
+                value={form.minPrice}
+                onChange={handleChange}
+                placeholder="예: 100000000"
+              />
+
+              <label style={labelStyle}>최대 가격</label>
+              <input
+                style={inputStyle}
+                type="number"
+                name="maxPrice"
+                value={form.maxPrice}
+                onChange={handleChange}
+                placeholder="예: 500000000"
+              />
+
+              <button
+                type="submit"
+                disabled={saving}
+                style={{
+                  marginTop: "20px",
+                  border: "none",
+                  background: saving ? "#94a3b8" : "#4f46e5",
+                  color: "white",
+                  padding: "14px 18px",
+                  borderRadius: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  width: "100%",
+                }}
+              >
+                {saving ? "저장 중..." : "관심조건 저장하기"}
+              </button>
+            </form>
+          </div>
+
+          <div style={{ display: "grid", gap: "16px" }}>
+            <div style={cardStyle}>
+              <h2 style={{ marginTop: 0 }}>로그인 상태</h2>
+
+              <p style={{ margin: "8px 0", color: "#64748b" }}>현재 사용자</p>
+              <p style={{ margin: 0, fontWeight: 700 }}>
+                {user ? user.email : "로그인 안 됨"}
+              </p>
+
+              <p style={{ margin: "16px 0 8px", color: "#64748b" }}>푸시 알림</p>
+              <p style={{ margin: 0, fontWeight: 700 }}>{pushStatus}</p>
+            </div>
+
+            <div style={cardStyle}>
+              <h2 style={{ marginTop: 0 }}>현재 기기 푸시 토큰</h2>
+
+              <div
+                style={{
+                  marginTop: "12px",
+                  background: "#0f172a",
+                  color: "#e2e8f0",
+                  padding: "16px",
+                  borderRadius: "12px",
+                  fontSize: "12px",
+                  wordBreak: "break-all",
+                }}
+              >
+                {token || "아직 토큰이 없습니다. 알림 허용하기를 눌러주세요."}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section style={cardStyle}>
+          <h2 style={{ marginTop: 0 }}>내 관심조건 목록</h2>
+
+          {!user ? (
+            <p>로그인하면 내 관심조건만 여기 보입니다.</p>
+          ) : loadingList ? (
+            <p>불러오는 중...</p>
+          ) : watchConditions.length === 0 ? (
+            <p>아직 저장된 관심조건이 없어요.</p>
+          ) : (
+            <div style={{ display: "grid", gap: "12px" }}>
+              {watchConditions.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "14px",
+                    padding: "16px",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <h3 style={{ margin: "0 0 10px 0" }}>
+                        {item.name || "이름 없음"}
+                      </h3>
+
+                      <div style={{ marginBottom: "8px" }}>
+                        {(item.platforms || []).map((platform) => (
+                          <span key={platform} style={badgeStyle}>
+                            {platform}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div style={{ marginBottom: "8px" }}>
+                        {(item.propertyTypes || []).map((type) => (
+                          <span
+                            key={type}
+                            style={{
+                              ...badgeStyle,
+                              background: "#ecfeff",
+                              color: "#0f766e",
+                            }}
+                          >
+                            {type}
+                          </span>
+                        ))}
+                      </div>
+
+                      <p style={{ margin: "6px 0" }}>
+                        <strong>지역:</strong> {item.regionKeyword || "-"}
+                      </p>
+
+                      <p style={{ margin: "6px 0" }}>
+                        <strong>최소 가격:</strong> {formatPrice(item.minPrice)}
+                      </p>
+
+                      <p style={{ margin: "6px 0" }}>
+                        <strong>최대 가격:</strong> {formatPrice(item.maxPrice)}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      disabled={deletingId === item.id}
+                      style={{
+                        border: "none",
+                        background: deletingId === item.id ? "#94a3b8" : "#dc2626",
+                        color: "white",
+                        padding: "10px 14px",
+                        borderRadius: "10px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {deletingId === item.id ? "삭제 중..." : "삭제"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
