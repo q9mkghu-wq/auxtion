@@ -4,15 +4,14 @@ export async function GET() {
   try {
     const apiKey = process.env.DATA_GO_KR_API_KEY;
 
-    // prptDivCd를 03(압류재산)으로 변경하여 테스트
+    // prptDivCd를 아예 빼거나 공백으로 두어 전체 검색 시도
     const url = 
       "https://apis.data.go.kr/B010003/OnbidRlstListSrvc2/getRlstCltrList2" +
       `?serviceKey=${apiKey}` +
       "&pageNo=1" +
       "&numOfRows=10" +
       "&resultType=json" +
-      "&prptDivCd=03" + 
-      "&pvctTrgtYn=N";
+      "&pvctTrgtYn=N"; // 필수값만 유지
 
     const res = await fetch(url, { cache: "no-store" });
     const text = await res.text();
