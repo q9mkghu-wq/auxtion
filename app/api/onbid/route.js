@@ -5,6 +5,8 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const numOfRows = searchParams.get("numOfRows") || "20";
     const pageNo = searchParams.get("pageNo") || "1";
+    const prptDivCd = searchParams.get("prptDivCd") || "10";
+    const pvctTrgtYn = searchParams.get("pvctTrgtYn") || "N";
 
     const apiKey = process.env.DATA_GO_KR_API_KEY;
 
@@ -16,11 +18,13 @@ export async function GET(request) {
     }
 
     const url =
-      "https://apis.data.go.kr/B010003/OnbidPbancCltrDtlSrvc2/getPbctClturInfo" +
+      "https://apis.data.go.kr/B010003/OnbidRlstListSrvc2/getRlstCltrList2" +
       `?serviceKey=${apiKey}` +
       `&numOfRows=${numOfRows}` +
       `&pageNo=${pageNo}` +
-      `&type=json`;
+      `&resultType=json` +
+      `&prptDivCd=${prptDivCd}` +
+      `&pvctTrgtYn=${pvctTrgtYn}`;
 
     const res = await fetch(url, { cache: "no-store" });
     const text = await res.text();
