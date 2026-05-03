@@ -600,7 +600,8 @@ export default function HomePage() {
                       disabled={deletingId === item.id}
                       style={{
                         border: "none",
-                        background: deletingId === item.id ? "#94a3b8" : "#dc2626",
+                        background:
+                          deletingId === item.id ? "#94a3b8" : "#dc2626",
                         color: "white",
                         padding: "10px 14px",
                         borderRadius: "10px",
