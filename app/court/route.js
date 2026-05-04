@@ -100,42 +100,43 @@ export async function GET(request) {
       ? data.data.dlt_srchResult
       : [];
 
-    const simplified = items
-      .map((item) => {
-        const address = buildAddress(item);
+    const mapped = items.map((item) => {
+      const address = buildAddress(item);
 
-        return {
-          사건번호: item.srnSaNo || "",
-          물건번호: item.maemulSer || "",
-          목적물번호: item.mokmulSer || "",
-          소재지: address,
-          감정가: formatPrice(item.gamevalAmt),
-          최저가: formatPrice(item.minmaePrice),
-          유찰수: item.yuchalCnt || "0",
-          매각기일: formatDate(item.maeGiil),
-          담당계: item.jpDeptNm || "",
-          비고: item.mulBigo || "",
-          용도코드: item.maemulUtilCd || "",
-          docid: item.docid || "",
-          courtCode: item.boCd || "",
-          caseNo: item.saNo || "",
-          itemNo: item.mokmulSer || "",
-        };
-      })
-      .filter((item) => {
-        if (!region) return true;
-        return item.소재지.includes(region);
-      });
+      return {
+        사건번호: item.srnSaNo || "",
+        물건번호: item.maemulSer || "",
+        목적물번호: item.mokmulSer || "",
+        소재지: address,
+        감정가: formatPrice(item.gamevalAmt),
+        최저가: formatPrice(item.minmaePrice),
+        유찰수: item.yuchalCnt || "0",
+        매각기일: formatDate(item.maeGiil),
+        담당계: item.jpDeptNm || "",
+        비고: item.mulBigo || "",
+        용도코드: item.maemulUtilCd || "",
+        docid: item.docid || "",
+        courtCode: item.boCd || "",
+        caseNo: item.saNo || "",
+        itemNo: item.mokmulSer || "",
+      };
+    });
+
+    const filteredItems = mapped.filter((item) => {
+      if (!region) return true;
+      return item.소재지.includes(region);
+    });
 
     return Response.json({
       ok: true,
       message: data?.message || "",
-      totalCount: simplified.length,
+      region,
       page: currentPage,
       size: pageSize,
-      region,
-      count: simplified.length,
-      items: simplified,
+      rawTotalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
+      totalCount: filteredItems.length,
+      count: filteredItems.length,
+      items: filteredItems,
       rawPageInfo: data?.data?.dma_pageInfo || null,
     });
   } catch (error) {
