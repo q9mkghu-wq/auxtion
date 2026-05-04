@@ -2,17 +2,17 @@ export const dynamic = "force-dynamic";
 
 const ROOT = "https://www.courtauction.go.kr";
 
-function pickOne(text, regex) {
-  const match = text.match(regex);
-  return match ? match[1].trim() : "";
+function one(text, regex) {
+  const m = text.match(regex);
+  return m ? m[1].trim() : "";
 }
 
-function pickAll(text, regex) {
+function all(text, regex) {
   return [...text.matchAll(regex)].map((m) => m[1].trim());
 }
 
-function unique(values) {
-  return [...new Set(values.filter(Boolean))];
+function uniq(arr) {
+  return [...new Set(arr.filter(Boolean))];
 }
 
 async function fetchText(url) {
@@ -33,43 +33,33 @@ async function fetchText(url) {
 
 export async function GET() {
   try {
-    const mainXmlUrl = `${ROOT}/pgj/ui/pgj100/PGJ157M00.xml`;
-    const mainXml = await fetchText(mainXmlUrl);
+    const resultXmlUrl = `${ROOT}/pgj/ui/pgj100/PGJ157M02.xml`;
+    const resultXml = await fetchText(resultXmlUrl);
 
-    const title = pickOne(mainXml.text, /<title>([\s\S]*?)<\/title>/i);
-    const frameSrc = pickOne(
-      mainXml.text,
-      /wfm_mainFrame\.setSrc\("([^"]+)"\)/i
+    const title = one(resultXml.text, /meta_screenName="([^"]+)"/i);
+
+    const sbmSelectBlock = one(
+      resultXml.text,
+      /<xf:submission[^>]*id="sbm_selectGdsDtlSrch"[\s\S]*?action="([^"]+)"[\s\S]*?<\/xf:submission>/i
     );
 
-    const resolvedFrameUrl = frameSrc
-      ? `${ROOT}${frameSrc}`
-      : "";
-
-    let frameStatus = null;
-    let submissionActions = [];
-
-    if (resolvedFrameUrl) {
-      const frameXml = await fetchText(resolvedFrameUrl);
-      frameStatus = frameXml.status;
-
-      submissionActions = unique(
-        pickAll(frameXml.text, /action="([^"]+)"/gi).map((path) =>
-          path.startsWith("http") ? path : `${ROOT}${path}`
-        )
-      );
-    }
+    const allActions = uniq(
+      all(resultXml.text, /action="([^"]+)"/gi).map((path) =>
+        path.startsWith("http") ? path : `${ROOT}${path}`
+      )
+    );
 
     return Response.json({
       ok: true,
-      step: "court-internal-xml-check",
       title,
-      mainXmlUrl,
-      mainXmlStatus: mainXml.status,
-      frameSrc,
-      frameUrl: resolvedFrameUrl,
-      frameStatus,
-      submissionActions,
+      resultXmlUrl,
+      resultXmlStatus: resultXml.status,
+      selectSearchAction: sbmSelectBlock
+        ? sbmSelectBlock.startsWith("http")
+          ? sbmSelectBlock
+          : `${ROOT}${sbmSelectBlock}`
+        : "",
+      allActions,
     });
   } catch (error) {
     return Response.json(
