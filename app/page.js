@@ -66,13 +66,12 @@ export default function HomePage() {
             id: docItem.id,
             ...docItem.data(),
           }))
-          .filter((item) => item.uid === user.uid);
-
-        items.sort((a, b) => {
-          const aSec = a.createdAt?.seconds ?? 0;
-          const bSec = b.createdAt?.seconds ?? 0;
-          return bSec - aSec;
-        });
+          .filter((item) => item.uid === user.uid)
+          .sort((a, b) => {
+            const aSec = a.createdAt?.seconds ?? 0;
+            const bSec = b.createdAt?.seconds ?? 0;
+            return bSec - aSec;
+          });
 
         setWatchConditions(items);
         setLoadingList(false);
@@ -88,38 +87,43 @@ export default function HomePage() {
 
   const handleEnablePush = async () => {
     try {
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        alert("이 브라우저는 푸시 알림을 지원하지 않아요.");
+        return;
+      }
+
       const permission = await Notification.requestPermission();
+      setPushStatus(permission);
 
       if (permission !== "granted") {
-        setPushStatus(permission);
-        alert("알림 허용을 눌러야 푸시를 받을 수 있어요.");
+        alert("알림 권한이 허용되지 않았어요.");
         return;
       }
 
       const messaging = await getFirebaseMessaging();
 
       if (!messaging) {
-        setPushStatus("unsupported");
-        alert("이 브라우저는 푸시 알림을 지원하지 않아요.");
+        alert("메시징을 사용할 수 없어요.");
         return;
       }
 
+      const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+
       const currentToken = await getToken(messaging, {
-        vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+        vapidKey,
       });
 
       if (!currentToken) {
-        alert("토큰을 가져오지 못했어요.");
+        alert("푸시 토큰을 가져오지 못했어요.");
         return;
       }
 
       localStorage.setItem("fcm_token", currentToken);
       setToken(currentToken);
-      setPushStatus("granted");
-      alert("푸시 알림 설정 완료");
+      alert("푸시 알림이 연결됐어요.");
     } catch (error) {
       console.error(error);
-      alert("알림 설정 중 오류가 발생했어요.");
+      alert("푸시 설정 중 오류가 발생했어요.");
     }
   };
 
@@ -127,6 +131,7 @@ export default function HomePage() {
     try {
       await signOut(auth);
       alert("로그아웃됐어요.");
+      window.location.href = "/login";
     } catch (error) {
       console.error(error);
       alert("로그아웃 중 오류가 발생했어요.");
@@ -159,7 +164,7 @@ export default function HomePage() {
     e.preventDefault();
 
     if (!user) {
-      alert("먼저 로그인하세요.");
+      alert("로그인 후 저장할 수 있어요.");
       return;
     }
 
@@ -169,12 +174,12 @@ export default function HomePage() {
     }
 
     if (form.platforms.length === 0) {
-      alert("플랫폼을 1개 이상 선택하세요.");
+      alert("플랫폼을 하나 이상 선택하세요.");
       return;
     }
 
     if (form.propertyTypes.length === 0) {
-      alert("물건 유형을 1개 이상 선택하세요.");
+      alert("물건 유형을 하나 이상 선택하세요.");
       return;
     }
 
@@ -184,17 +189,15 @@ export default function HomePage() {
       await addDoc(collection(db, "watchConditions"), {
         uid: user.uid,
         email: user.email || "",
-        name: form.name,
-        regionKeyword: form.regionKeyword,
-        minPrice: form.minPrice ? Number(form.minPrice) : null,
-        maxPrice: form.maxPrice ? Number(form.maxPrice) : null,
+        name: form.name.trim(),
+        regionKeyword: form.regionKeyword.trim(),
+        minPrice: form.minPrice.trim(),
+        maxPrice: form.maxPrice.trim(),
         platforms: form.platforms,
         propertyTypes: form.propertyTypes,
-        pushToken: token || null,
+        pushToken: token || "",
         createdAt: serverTimestamp(),
       });
-
-      alert("저장됐어요.");
 
       setForm({
         name: "",
@@ -204,6 +207,8 @@ export default function HomePage() {
         platforms: [],
         propertyTypes: [],
       });
+
+      alert("관심조건이 저장됐어요.");
     } catch (error) {
       console.error(error);
       alert("저장 중 오류가 발생했어요.");
@@ -213,14 +218,6 @@ export default function HomePage() {
   };
 
   const handleDelete = async (id) => {
-    if (!user) {
-      alert("먼저 로그인하세요.");
-      return;
-    }
-
-    const ok = window.confirm("이 관심조건을 삭제할까요?");
-    if (!ok) return;
-
     try {
       setDeletingId(id);
       await deleteDoc(doc(db, "watchConditions", id));
@@ -234,10 +231,10 @@ export default function HomePage() {
   };
 
   const formatPrice = (value) => {
-    if (value === null || value === undefined || value === "") {
-      return "-";
-    }
-    return Number(value).toLocaleString("ko-KR") + "원";
+    if (value === null || value === undefined || value === "") return "-";
+    const num = Number(value);
+    if (Number.isNaN(num)) return value;
+    return `${num.toLocaleString("ko-KR")}원`;
   };
 
   const cardStyle = {
@@ -261,9 +258,29 @@ export default function HomePage() {
   const labelStyle = {
     display: "block",
     fontSize: "14px",
-    fontWeight: "700",
+    fontWeight: 700,
     marginTop: "14px",
+    color: "#111827",
   };
+
+  const checkboxWrapStyle = {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginTop: "10px",
+  };
+
+  const checkboxButtonStyle = (active) => ({
+    padding: "10px 14px",
+    borderRadius: "999px",
+    border: "1px solid",
+    borderColor: active ? "#4f46e5" : "#d1d5db",
+    background: active ? "#eef2ff" : "#ffffff",
+    color: active ? "#4338ca" : "#111827",
+    fontWeight: 700,
+    fontSize: "13px",
+    cursor: "pointer",
+  });
 
   const badgeStyle = {
     display: "inline-block",
@@ -272,7 +289,7 @@ export default function HomePage() {
     background: "#eef2ff",
     color: "#4338ca",
     fontSize: "12px",
-    fontWeight: "700",
+    fontWeight: 700,
     marginRight: "8px",
     marginBottom: "8px",
   };
@@ -376,6 +393,23 @@ export default function HomePage() {
                 </button>
 
                 <button
+                  onClick={() => {
+                    window.location.href = "/court";
+                  }}
+                  style={{
+                    border: "none",
+                    background: "#2563eb",
+                    color: "white",
+                    padding: "12px 18px",
+                    borderRadius: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  법원경매 보기
+                </button>
+
+                <button
                   onClick={handleLogout}
                   style={{
                     border: "none",
@@ -394,106 +428,120 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section style={{ ...cardStyle, marginBottom: "20px" }}>
+          <h2
+            style={{
+              marginTop: 0,
+              marginBottom: "10px",
+              fontSize: "24px",
+              color: "#111827",
+            }}
+          >
+            현재 사용자
+          </h2>
+
+          <p style={{ margin: 0, color: "#6b7280", lineHeight: 1.6 }}>
+            {user ? user.email : "로그인하지 않았어요."}
+          </p>
+        </section>
+
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "1.1fr 0.9fr",
-            gap: "16px",
-            marginBottom: "16px",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: "20px",
           }}
         >
           <div style={cardStyle}>
-            <h2 style={{ marginTop: 0 }}>관심조건 등록</h2>
+            <h2
+              style={{
+                marginTop: 0,
+                marginBottom: "10px",
+                fontSize: "24px",
+                color: "#111827",
+              }}
+            >
+              관심조건 등록
+            </h2>
 
-            {!user && (
-              <div
-                style={{
-                  marginBottom: "14px",
-                  padding: "12px",
-                  borderRadius: "10px",
-                  background: "#fff7ed",
-                  color: "#9a3412",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                }}
-              >
-                먼저 로그인해야 저장할 수 있어요.
-              </div>
-            )}
+            <p style={{ margin: 0, color: "#6b7280", lineHeight: 1.6 }}>
+              원하는 조건을 저장하면 나중에 자동 알림으로 연결할 수 있어요.
+            </p>
 
             <form onSubmit={handleSave}>
               <label style={labelStyle}>관심조건 이름</label>
               <input
-                style={inputStyle}
                 name="name"
                 value={form.name}
                 onChange={handleChange}
                 placeholder="예: 서울 아파트"
+                style={inputStyle}
               />
-
-              <label style={labelStyle}>플랫폼</label>
-              <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
-                {["법원경매", "온비드 공매"].map((item) => (
-                  <label key={item} style={{ fontSize: "14px" }}>
-                    <input
-                      type="checkbox"
-                      checked={form.platforms.includes(item)}
-                      onChange={() => toggleCheckbox("platforms", item)}
-                      style={{ marginRight: "8px" }}
-                    />
-                    {item}
-                  </label>
-                ))}
-              </div>
-
-              <label style={labelStyle}>물건 유형</label>
-              <div style={{ marginTop: "10px", display: "grid", gap: "8px" }}>
-                {["아파트·주택", "상가·오피스", "토지", "기타"].map((item) => (
-                  <label key={item} style={{ fontSize: "14px" }}>
-                    <input
-                      type="checkbox"
-                      checked={form.propertyTypes.includes(item)}
-                      onChange={() => toggleCheckbox("propertyTypes", item)}
-                      style={{ marginRight: "8px" }}
-                    />
-                    {item}
-                  </label>
-                ))}
-              </div>
 
               <label style={labelStyle}>지역 키워드</label>
               <input
-                style={inputStyle}
                 name="regionKeyword"
                 value={form.regionKeyword}
                 onChange={handleChange}
-                placeholder="예: 서울, 강남, 수원"
+                placeholder="예: 서울, 강남, 부산"
+                style={inputStyle}
               />
 
-              <label style={labelStyle}>최소 가격</label>
+              <label style={labelStyle}>최소 금액</label>
               <input
-                style={inputStyle}
-                type="number"
                 name="minPrice"
                 value={form.minPrice}
                 onChange={handleChange}
                 placeholder="예: 100000000"
+                style={inputStyle}
               />
 
-              <label style={labelStyle}>최대 가격</label>
+              <label style={labelStyle}>최대 금액</label>
               <input
-                style={inputStyle}
-                type="number"
                 name="maxPrice"
                 value={form.maxPrice}
                 onChange={handleChange}
                 placeholder="예: 500000000"
+                style={inputStyle}
               />
+
+              <label style={labelStyle}>플랫폼</label>
+              <div style={checkboxWrapStyle}>
+                {["법원경매", "온비드 공매"].map((platform) => (
+                  <button
+                    key={platform}
+                    type="button"
+                    onClick={() => toggleCheckbox("platforms", platform)}
+                    style={checkboxButtonStyle(
+                      form.platforms.includes(platform)
+                    )}
+                  >
+                    {platform}
+                  </button>
+                ))}
+              </div>
+
+              <label style={labelStyle}>물건 유형</label>
+              <div style={checkboxWrapStyle}>
+                {["아파트·주택", "상가·오피스", "토지", "기타"].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => toggleCheckbox("propertyTypes", type)}
+                    style={checkboxButtonStyle(
+                      form.propertyTypes.includes(type)
+                    )}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
 
               <button
                 type="submit"
                 disabled={saving}
                 style={{
+                  width: "100%",
                   marginTop: "20px",
                   border: "none",
                   background: saving ? "#94a3b8" : "#4f46e5",
@@ -501,8 +549,8 @@ export default function HomePage() {
                   padding: "14px 18px",
                   borderRadius: "12px",
                   fontWeight: 700,
+                  fontSize: "15px",
                   cursor: "pointer",
-                  width: "100%",
                 }}
               >
                 {saving ? "저장 중..." : "관심조건 저장하기"}
@@ -510,131 +558,120 @@ export default function HomePage() {
             </form>
           </div>
 
-          <div style={{ display: "grid", gap: "16px" }}>
-            <div style={cardStyle}>
-              <h2 style={{ marginTop: 0 }}>로그인 상태</h2>
+          <div style={cardStyle}>
+            <h2
+              style={{
+                marginTop: 0,
+                marginBottom: "10px",
+                fontSize: "24px",
+                color: "#111827",
+              }}
+            >
+              저장된 관심조건
+            </h2>
 
-              <p style={{ margin: "8px 0", color: "#64748b" }}>현재 사용자</p>
-              <p style={{ margin: 0, fontWeight: 700 }}>
-                {user ? user.email : "로그인 안 됨"}
-              </p>
+            <p style={{ margin: 0, color: "#6b7280", lineHeight: 1.6 }}>
+              로그인한 사용자 본인 조건만 보여요.
+            </p>
 
-              <p style={{ margin: "16px 0 8px", color: "#64748b" }}>푸시 알림</p>
-              <p style={{ margin: 0, fontWeight: 700 }}>{pushStatus}</p>
-            </div>
-
-            <div style={cardStyle}>
-              <h2 style={{ marginTop: 0 }}>현재 기기 푸시 토큰</h2>
-
-              <div
-                style={{
-                  marginTop: "12px",
-                  background: "#0f172a",
-                  color: "#e2e8f0",
-                  padding: "16px",
-                  borderRadius: "12px",
-                  fontSize: "12px",
-                  wordBreak: "break-all",
-                }}
-              >
-                {token || "아직 토큰이 없습니다. 알림 허용하기를 눌러주세요."}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section style={cardStyle}>
-          <h2 style={{ marginTop: 0 }}>내 관심조건 목록</h2>
-
-          {!user ? (
-            <p>로그인하면 내 관심조건만 여기 보입니다.</p>
-          ) : loadingList ? (
-            <p>불러오는 중...</p>
-          ) : watchConditions.length === 0 ? (
-            <p>아직 저장된 관심조건이 없어요.</p>
-          ) : (
-            <div style={{ display: "grid", gap: "12px" }}>
-              {watchConditions.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "14px",
-                    padding: "16px",
-                    background: "#f8fafc",
-                  }}
-                >
+            <div style={{ marginTop: "18px" }}>
+              {loadingList ? (
+                <div style={{ color: "#6b7280" }}>불러오는 중...</div>
+              ) : watchConditions.length === 0 ? (
+                <div style={{ color: "#6b7280" }}>
+                  아직 저장된 관심조건이 없어요.
+                </div>
+              ) : (
+                watchConditions.map((item) => (
                   <div
+                    key={item.id}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: "12px",
-                      flexWrap: "wrap",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "14px",
+                      padding: "16px",
+                      marginBottom: "14px",
+                      background: "#f8fafc",
                     }}
                   >
-                    <div>
-                      <h3 style={{ margin: "0 0 10px 0" }}>
-                        {item.name || "이름 없음"}
-                      </h3>
-
-                      <div style={{ marginBottom: "8px" }}>
-                        {(item.platforms || []).map((platform) => (
-                          <span key={platform} style={badgeStyle}>
-                            {platform}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div style={{ marginBottom: "8px" }}>
-                        {(item.propertyTypes || []).map((type) => (
-                          <span
-                            key={type}
-                            style={{
-                              ...badgeStyle,
-                              background: "#ecfeff",
-                              color: "#0f766e",
-                            }}
-                          >
-                            {type}
-                          </span>
-                        ))}
-                      </div>
-
-                      <p style={{ margin: "6px 0" }}>
-                        <strong>지역:</strong> {item.regionKeyword || "-"}
-                      </p>
-
-                      <p style={{ margin: "6px 0" }}>
-                        <strong>최소 가격:</strong> {formatPrice(item.minPrice)}
-                      </p>
-
-                      <p style={{ margin: "6px 0" }}>
-                        <strong>최대 가격:</strong> {formatPrice(item.maxPrice)}
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      disabled={deletingId === item.id}
+                    <div
                       style={{
-                        border: "none",
-                        background:
-                          deletingId === item.id ? "#94a3b8" : "#dc2626",
-                        color: "white",
-                        padding: "10px 14px",
-                        borderRadius: "10px",
-                        fontWeight: 700,
-                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        alignItems: "flex-start",
+                        flexWrap: "wrap",
                       }}
                     >
-                      {deletingId === item.id ? "삭제 중..." : "삭제"}
-                    </button>
+                      <div>
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontSize: "18px",
+                            color: "#111827",
+                          }}
+                        >
+                          {item.name || "-"}
+                        </h3>
+
+                        <p
+                          style={{
+                            marginTop: "8px",
+                            marginBottom: 0,
+                            color: "#6b7280",
+                            fontSize: "14px",
+                          }}
+                        >
+                          지역: {item.regionKeyword || "-"}
+                        </p>
+
+                        <p
+                          style={{
+                            marginTop: "6px",
+                            marginBottom: 0,
+                            color: "#6b7280",
+                            fontSize: "14px",
+                          }}
+                        >
+                          금액: {formatPrice(item.minPrice)} ~{" "}
+                          {formatPrice(item.maxPrice)}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        disabled={deletingId === item.id}
+                        style={{
+                          border: "none",
+                          background:
+                            deletingId === item.id ? "#cbd5e1" : "#ef4444",
+                          color: "white",
+                          padding: "10px 14px",
+                          borderRadius: "10px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {deletingId === item.id ? "삭제 중..." : "삭제"}
+                      </button>
+                    </div>
+
+                    <div style={{ marginTop: "14px" }}>
+                      {(item.platforms || []).map((platform) => (
+                        <span key={platform} style={badgeStyle}>
+                          {platform}
+                        </span>
+                      ))}
+                      {(item.propertyTypes || []).map((type) => (
+                        <span key={type} style={badgeStyle}>
+                          {type}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
-          )}
+          </div>
         </section>
       </div>
     </main>
