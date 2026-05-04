@@ -1,75 +1,75 @@
 export const dynamic = "force-dynamic";
 
-function extractTitle(html) {
-  const match = html.match(/<title[^>]*>(.*?)<\/title>/i);
+const ROOT = "https://www.courtauction.go.kr";
+
+function pickOne(text, regex) {
+  const match = text.match(regex);
   return match ? match[1].trim() : "";
 }
 
-function stripHtml(html) {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function pickAll(text, regex) {
+  return [...text.matchAll(regex)].map((m) => m[1].trim());
 }
 
-export async function GET(request) {
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+async function fetchText(url) {
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      "User-Agent": "Mozilla/5.0",
+      Accept: "application/xml,text/xml,text/html,*/*",
+      "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+    },
+  });
+
+  return {
+    status: res.status,
+    text: await res.text(),
+  };
+}
+
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const target =
-      searchParams.get("target") ||
-      "scheduled";
+    const mainXmlUrl = `${ROOT}/pgj/ui/pgj100/PGJ157M00.xml`;
+    const mainXml = await fetchText(mainXmlUrl);
 
-    const targets = {
-      scheduled:
-        "https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ157M00.xml",
-      caseSearch:
-        "https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ159M00.xml",
-      detailSearch:
-        "https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ151F00.xml",
-    };
+    const title = pickOne(mainXml.text, /<title>([\s\S]*?)<\/title>/i);
+    const frameSrc = pickOne(
+      mainXml.text,
+      /wfm_mainFrame\.setSrc\("([^"]+)"\)/i
+    );
 
-    const selectedUrl = targets[target] || targets.scheduled;
+    const resolvedFrameUrl = frameSrc
+      ? `${ROOT}${frameSrc}`
+      : "";
 
-    const res = await fetch(selectedUrl, {
-      cache: "no-store",
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
-      },
-    });
+    let frameStatus = null;
+    let submissionActions = [];
 
-    const html = await res.text();
-    const title = extractTitle(html);
-    const textPreview = stripHtml(html).slice(0, 500);
+    if (resolvedFrameUrl) {
+      const frameXml = await fetchText(resolvedFrameUrl);
+      frameStatus = frameXml.status;
+
+      submissionActions = unique(
+        pickAll(frameXml.text, /action="([^"]+)"/gi).map((path) =>
+          path.startsWith("http") ? path : `${ROOT}${path}`
+        )
+      );
+    }
 
     return Response.json({
       ok: true,
-      target,
-      pageUrl: selectedUrl,
-      status: res.status,
+      step: "court-internal-xml-check",
       title,
-      htmlLength: html.length,
-      preview: textPreview,
-      availableTargets: [
-        {
-          key: "scheduled",
-          name: "매각예정물건",
-          url: targets.scheduled,
-        },
-        {
-          key: "caseSearch",
-          name: "경매사건검색",
-          url: targets.caseSearch,
-        },
-        {
-          key: "detailSearch",
-          name: "물건상세검색",
-          url: targets.detailSearch,
-        },
-      ],
+      mainXmlUrl,
+      mainXmlStatus: mainXml.status,
+      frameSrc,
+      frameUrl: resolvedFrameUrl,
+      frameStatus,
+      submissionActions,
     });
   } catch (error) {
     return Response.json(
