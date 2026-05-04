@@ -3,6 +3,34 @@ export const dynamic = "force-dynamic";
 const SEARCH_URL =
   "https://www.courtauction.go.kr/pgj/pgjsearch/searchControllerMain.on";
 
+const REGION_CODE_MAP = {
+  서울: "11",
+  부산: "26",
+  대구: "27",
+  인천: "28",
+  광주: "29",
+  대전: "30",
+  울산: "31",
+  세종: "36",
+  경기: "41",
+  강원: "42",
+  충북: "43",
+  충청북도: "43",
+  충남: "44",
+  충청남도: "44",
+  전북: "45",
+  전라북도: "45",
+  전남: "46",
+  전라남도: "46",
+  경북: "47",
+  경상북도: "47",
+  경남: "48",
+  경상남도: "48",
+  제주: "50",
+  제주도: "50",
+  제주특별자치도: "50",
+};
+
 function formatDate(value) {
   if (!value) return "";
   const s = String(value);
@@ -49,7 +77,20 @@ function mapItem(item) {
   };
 }
 
-async function fetchCourtPage(currentPage, pageSize) {
+function findRegionCode(region) {
+  const keyword = (region || "").trim();
+  if (!keyword) return "";
+
+  for (const [name, code] of Object.entries(REGION_CODE_MAP)) {
+    if (keyword.includes(name) || name.includes(keyword)) {
+      return code;
+    }
+  }
+
+  return "";
+}
+
+async function fetchCourtPage(currentPage, pageSize, regionCode = "") {
   const payload = {
     dma_srchGdsDtlSrchInfo: {
       statNum: "000000",
@@ -58,11 +99,11 @@ async function fetchCourtPage(currentPage, pageSize) {
       lafjOrderBy: "",
       bidDvsCd: "000331",
       cortAuctnSrchCondCd: "0004602",
-      cortStDvs: "1",
+      cortStDvs: regionCode ? "2" : "1",
       cortOfcCd: "",
       jdbnCd: "",
       csNo: "",
-      rprsAdongSdCd: "",
+      rprsAdongSdCd: regionCode || "",
       rprsAdongSggCd: "",
       rprsAdongEmdCd: "",
       rdnmSdCd: "",
@@ -118,85 +159,31 @@ export async function GET(request) {
     const currentPage = Number.isNaN(page) || page < 1 ? 1 : page;
     const pageSize = Number.isNaN(size) || size < 1 ? 10 : size;
 
-    // 지역 검색이 없으면 기존처럼 현재 페이지 그대로 반환
-    if (!region) {
-      const data = await fetchCourtPage(currentPage, pageSize);
-      const items = Array.isArray(data?.data?.dlt_srchResult)
-        ? data.data.dlt_srchResult
-        : [];
+    const regionCode = findRegionCode(region);
+    const data = await fetchCourtPage(currentPage, pageSize, regionCode);
 
-      const mapped = items.map(mapItem);
+    const items = Array.isArray(data?.data?.dlt_srchResult)
+      ? data.data.dlt_srchResult
+      : [];
 
-      return Response.json({
-        ok: true,
-        message: data?.message || "",
-        region: "",
-        page: currentPage,
-        size: pageSize,
-        rawTotalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
-        totalCount: mapped.length,
-        count: mapped.length,
-        items: mapped,
-        rawPageInfo: data?.data?.dma_pageInfo || null,
-      });
+    let mapped = items.map(mapItem);
+
+    if (region && !regionCode) {
+      mapped = mapped.filter((item) => item.소재지.includes(region));
     }
-
-    // 지역 검색이 있으면 여러 페이지를 훑어서 맞는 것만 모음
-    const fetchSize = 50;
-    const maxPagesToScan = 20;
-    const needCount = currentPage * pageSize;
-
-    let rawTotalCount = 0;
-    let message = "";
-    let lastRawPageInfo = null;
-    let scannedPages = 0;
-    const collected = [];
-
-    for (let apiPage = 1; apiPage <= maxPagesToScan; apiPage += 1) {
-      const data = await fetchCourtPage(apiPage, fetchSize);
-
-      scannedPages = apiPage;
-      message = data?.message || message;
-      rawTotalCount =
-        data?.data?.dma_pageInfo?.groupTotalCount || rawTotalCount;
-      lastRawPageInfo = data?.data?.dma_pageInfo || lastRawPageInfo;
-
-      const items = Array.isArray(data?.data?.dlt_srchResult)
-        ? data.data.dlt_srchResult
-        : [];
-
-      const matched = items
-        .map(mapItem)
-        .filter((item) => item.소재지.includes(region));
-
-      collected.push(...matched);
-
-      if (collected.length >= needCount) {
-        break;
-      }
-
-      if (rawTotalCount && apiPage * fetchSize >= rawTotalCount) {
-        break;
-      }
-    }
-
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const pagedItems = collected.slice(startIndex, endIndex);
 
     return Response.json({
       ok: true,
-      message,
+      message: data?.message || "",
       region,
+      regionCode,
       page: currentPage,
       size: pageSize,
-      rawTotalCount,
-      matchedTotalCount: collected.length,
-      totalCount: pagedItems.length,
-      count: pagedItems.length,
-      scannedPages,
-      items: pagedItems,
-      rawPageInfo: lastRawPageInfo,
+      rawTotalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
+      totalCount: mapped.length,
+      count: mapped.length,
+      items: mapped,
+      rawPageInfo: data?.data?.dma_pageInfo || null,
     });
   } catch (error) {
     return Response.json(
