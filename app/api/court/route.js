@@ -90,7 +90,7 @@ function findRegionCode(region) {
   return "";
 }
 
-async function fetchCourtPage(currentPage, pageSize, regionCode = "") {
+async function fetchCourt(currentPage, pageSize, regionCode = "") {
   const payload = {
     dma_srchGdsDtlSrchInfo: {
       statNum: "000000",
@@ -158,9 +158,36 @@ export async function GET(request) {
 
     const currentPage = Number.isNaN(page) || page < 1 ? 1 : page;
     const pageSize = Number.isNaN(size) || size < 1 ? 10 : size;
-
     const regionCode = findRegionCode(region);
-    const data = await fetchCourtPage(currentPage, pageSize, regionCode);
+
+    // 지역검색이 아니면 기존 방식
+    if (!region) {
+      const data = await fetchCourt(currentPage, pageSize, "");
+
+      const items = Array.isArray(data?.data?.dlt_srchResult)
+        ? data.data.dlt_srchResult
+        : [];
+
+      const mapped = items.map(mapItem);
+
+      return Response.json({
+        ok: true,
+        message: data?.message || "",
+        region: "",
+        regionCode: "",
+        page: currentPage,
+        size: pageSize,
+        rawTotalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
+        totalCount: mapped.length,
+        count: mapped.length,
+        items: mapped,
+        rawPageInfo: data?.data?.dma_pageInfo || null,
+      });
+    }
+
+    // 지역검색이면 50건을 한 번에 받고 우리 쪽에서 10개씩 자르기
+    const bulkSize = 50;
+    const data = await fetchCourt(1, bulkSize, regionCode);
 
     const items = Array.isArray(data?.data?.dlt_srchResult)
       ? data.data.dlt_srchResult
@@ -168,9 +195,13 @@ export async function GET(request) {
 
     let mapped = items.map(mapItem);
 
-    if (region && !regionCode) {
+    if (!regionCode) {
       mapped = mapped.filter((item) => item.소재지.includes(region));
     }
+
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const pagedItems = mapped.slice(startIndex, endIndex);
 
     return Response.json({
       ok: true,
@@ -180,9 +211,10 @@ export async function GET(request) {
       page: currentPage,
       size: pageSize,
       rawTotalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
-      totalCount: mapped.length,
-      count: mapped.length,
-      items: mapped,
+      matchedTotalCount: mapped.length,
+      totalCount: pagedItems.length,
+      count: pagedItems.length,
+      items: pagedItems,
       rawPageInfo: data?.data?.dma_pageInfo || null,
     });
   } catch (error) {
