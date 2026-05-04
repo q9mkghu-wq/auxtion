@@ -1,65 +1,92 @@
 export const dynamic = "force-dynamic";
 
-const ROOT = "https://www.courtauction.go.kr";
-
-function one(text, regex) {
-  const m = text.match(regex);
-  return m ? m[1].trim() : "";
-}
-
-function all(text, regex) {
-  return [...text.matchAll(regex)].map((m) => m[1].trim());
-}
-
-function uniq(arr) {
-  return [...new Set(arr.filter(Boolean))];
-}
-
-async function fetchText(url) {
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: {
-      "User-Agent": "Mozilla/5.0",
-      Accept: "application/xml,text/xml,text/html,*/*",
-      "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
-    },
-  });
-
-  return {
-    status: res.status,
-    text: await res.text(),
-  };
-}
+const SEARCH_URL =
+  "https://www.courtauction.go.kr/pgj/pgjsearch/searchControllerMain.on";
 
 export async function GET() {
   try {
-    const resultXmlUrl = `${ROOT}/pgj/ui/pgj100/PGJ157M02.xml`;
-    const resultXml = await fetchText(resultXmlUrl);
+    const payload = {
+      dma_srchGdsDtlSrchInfo: {
+        statNum: "000000",
+        cortAuctnMbrsId: "",
+        pgmId: "PGJ157M02",
+        lafjOrderBy: "",
+        bidDvsCd: "000331",
+        cortAuctnSrchCondCd: "0004602",
+        cortStDvs: "1",
+        cortOfcCd: "",
+        jdbnCd: "",
+        csNo: "",
+        rprsAdongSdCd: "",
+        rprsAdongSggCd: "",
+        rprsAdongEmdCd: "",
+        rdnmSdCd: "",
+        rdnmSggCd: "",
+        rdnmNo: "",
+        lclDspslGdsLstUsgCd: "",
+        mclDspslGdsLstUsgCd: "",
+        sclDspslGdsLstUsgCd: "",
+        aeeEvlAmtMin: "",
+        aeeEvlAmtMax: "",
+        lwsDspslPrcMin: "",
+        lwsDspslPrcMax: "",
+        lwsDspslPrcRateMin: "",
+        lwsDspslPrcRateMax: "",
+        flbdNcntMin: "",
+        flbdNcntMax: "",
+        objctArDtsMin: "",
+        objctArDtsMax: "",
+        bidBgngYmd: "",
+        bidEndYmd: "",
+      },
+      dma_pageInfo: {
+        currentPage: 1,
+        pageSize: 10,
+        recordCountPerPage: 10,
+        firstIndex: 0,
+        lastIndex: 10,
+      },
+    };
 
-    const title = one(resultXml.text, /meta_screenName="([^"]+)"/i);
+    const res = await fetch(SEARCH_URL, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json; charset=UTF-8",
+        Accept: "application/json, text/plain, */*",
+        "User-Agent": "Mozilla/5.0",
+      },
+      body: JSON.stringify(payload),
+    });
 
-    const sbmSelectBlock = one(
-      resultXml.text,
-      /<xf:submission[^>]*id="sbm_selectGdsDtlSrch"[\s\S]*?action="([^"]+)"[\s\S]*?<\/xf:submission>/i
-    );
+    const data = await res.json();
 
-    const allActions = uniq(
-      all(resultXml.text, /action="([^"]+)"/gi).map((path) =>
-        path.startsWith("http") ? path : `${ROOT}${path}`
-      )
-    );
+    const items = Array.isArray(data?.data?.dlt_srchResult)
+      ? data.data.dlt_srchResult
+      : [];
+
+    const simplified = items.map((item) => ({
+      사건번호: item.srnSaNo || "",
+      물건번호: item.maemulSer || "",
+      소재지: item.realSt || "",
+      감정가: item.gamevalAmt || "",
+      최저가: item.minmaePrice || "",
+      유찰수: item.yuchalCnt || "",
+      매각기일: item.maeGiil || "",
+      담당계: item.jpDeptNm || "",
+      docid: item.docid || "",
+      courtCode: item.boCd || "",
+      caseNo: item.saNo || "",
+      itemNo: item.mokmulSer || "",
+    }));
 
     return Response.json({
       ok: true,
-      title,
-      resultXmlUrl,
-      resultXmlStatus: resultXml.status,
-      selectSearchAction: sbmSelectBlock
-        ? sbmSelectBlock.startsWith("http")
-          ? sbmSelectBlock
-          : `${ROOT}${sbmSelectBlock}`
-        : "",
-      allActions,
+      message: data?.message || "",
+      totalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
+      count: simplified.length,
+      items: simplified,
+      rawPageInfo: data?.data?.dma_pageInfo || null,
     });
   } catch (error) {
     return Response.json(
