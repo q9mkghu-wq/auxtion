@@ -3,8 +3,42 @@ export const dynamic = "force-dynamic";
 const SEARCH_URL =
   "https://www.courtauction.go.kr/pgj/pgjsearch/searchControllerMain.on";
 
-export async function GET() {
+function formatDate(value) {
+  if (!value) return "";
+  const s = String(value);
+  if (s.length !== 8) return s;
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+}
+
+function formatPrice(value) {
+  if (!value) return "";
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value);
+  return num.toLocaleString("ko-KR");
+}
+
+function buildAddress(item) {
+  return (
+    item.printSt ||
+    item.realSt ||
+    [item.hjguSido, item.hjguSigu, item.hjguDong, item.hjguRd, item.daepyoLotno]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+
+    const page = Number(searchParams.get("page") || "1");
+    const size = Number(searchParams.get("size") || "10");
+
+    const currentPage = Number.isNaN(page) || page < 1 ? 1 : page;
+    const pageSize = Number.isNaN(size) || size < 1 ? 10 : size;
+
     const payload = {
       dma_srchGdsDtlSrchInfo: {
         statNum: "000000",
@@ -40,11 +74,11 @@ export async function GET() {
         bidEndYmd: "",
       },
       dma_pageInfo: {
-        currentPage: 1,
-        pageSize: 10,
-        recordCountPerPage: 10,
-        firstIndex: 0,
-        lastIndex: 10,
+        currentPage,
+        pageSize,
+        recordCountPerPage: pageSize,
+        firstIndex: (currentPage - 1) * pageSize,
+        lastIndex: currentPage * pageSize,
       },
     };
 
@@ -68,22 +102,36 @@ export async function GET() {
     const simplified = items.map((item) => ({
       사건번호: item.srnSaNo || "",
       물건번호: item.maemulSer || "",
-      소재지: item.realSt || "",
-      감정가: item.gamevalAmt || "",
-      최저가: item.minmaePrice || "",
-      유찰수: item.yuchalCnt || "",
-      매각기일: item.maeGiil || "",
+      목적물번호: item.mokmulSer || "",
+      소재지: buildAddress(item),
+      감정가: formatPrice(item.gamevalAmt),
+      최저가: formatPrice(item.minmaePrice),
+      유찰수: item.yuchalCnt || "0",
+      매각기일: formatDate(item.maeGiil),
       담당계: item.jpDeptNm || "",
+      비고: item.mulBigo || "",
+      용도코드: item.maemulUtilCd || "",
       docid: item.docid || "",
       courtCode: item.boCd || "",
       caseNo: item.saNo || "",
       itemNo: item.mokmulSer || "",
+      raw: {
+        printSt: item.printSt || "",
+        realSt: item.realSt || "",
+        hjguSido: item.hjguSido || "",
+        hjguSigu: item.hjguSigu || "",
+        hjguDong: item.hjguDong || "",
+        hjguRd: item.hjguRd || "",
+        daepyoLotno: item.daepyoLotno || "",
+      },
     }));
 
     return Response.json({
       ok: true,
       message: data?.message || "",
       totalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
+      page: currentPage,
+      size: pageSize,
       count: simplified.length,
       items: simplified,
       rawPageInfo: data?.data?.dma_pageInfo || null,
