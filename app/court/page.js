@@ -6,18 +6,29 @@ export default function CourtPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
+  const [keyword, setKeyword] = useState("");
+  const [appliedRegion, setAppliedRegion] = useState("");
   const [data, setData] = useState({
     totalCount: 0,
     count: 0,
     items: [],
   });
 
-  const fetchData = async (nextPage = 1) => {
+  const fetchData = async (nextPage = 1, nextRegion = "") => {
     try {
       setLoading(true);
       setError("");
 
-      const res = await fetch(`/api/court?page=${nextPage}&size=10`, {
+      const params = new URLSearchParams({
+        page: String(nextPage),
+        size: "10",
+      });
+
+      if (nextRegion.trim()) {
+        params.set("region", nextRegion.trim());
+      }
+
+      const res = await fetch(`/api/court?${params.toString()}`, {
         cache: "no-store",
       });
 
@@ -32,7 +43,9 @@ export default function CourtPage() {
         count: json.count || 0,
         items: Array.isArray(json.items) ? json.items : [],
       });
+
       setPage(json.page || nextPage);
+      setAppliedRegion(json.region || "");
     } catch (err) {
       console.error(err);
       setError(err.message || "알 수 없는 오류가 발생했어요.");
@@ -42,8 +55,12 @@ export default function CourtPage() {
   };
 
   useEffect(() => {
-    fetchData(1);
+    fetchData(1, "");
   }, []);
+
+  const handleSearch = () => {
+    fetchData(1, keyword);
+  };
 
   const cardStyle = {
     background: "#ffffff",
@@ -72,6 +89,16 @@ export default function CourtPage() {
     padding: "12px 16px",
     fontWeight: 700,
     cursor: "pointer",
+  };
+
+  const inputStyle = {
+    flex: 1,
+    minWidth: "220px",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    border: "1px solid #cbd5e1",
+    fontSize: "14px",
+    boxSizing: "border-box",
   };
 
   return (
@@ -111,7 +138,7 @@ export default function CourtPage() {
               opacity: 0.95,
             }}
           >
-            매각예정물건 데이터를 직접 불러와서 화면에 보여줍니다.
+            지역 키워드로 매각예정물건을 바로 필터링할 수 있어요.
           </p>
 
           <div
@@ -122,30 +149,37 @@ export default function CourtPage() {
               marginTop: "18px",
             }}
           >
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="예: 서울, 부산, 평창동"
+              style={inputStyle}
+            />
+
             <button
-              onClick={() => fetchData(page)}
+              onClick={handleSearch}
               style={{
                 ...buttonStyle,
                 background: "#ffffff",
                 color: "#0f172a",
               }}
             >
-              새로고침
+              지역 검색
             </button>
 
-            <a
-              href="/"
+            <button
+              onClick={() => {
+                setKeyword("");
+                fetchData(1, "");
+              }}
               style={{
                 ...buttonStyle,
                 background: "#111827",
                 color: "#ffffff",
-                textDecoration: "none",
-                display: "inline-flex",
-                alignItems: "center",
               }}
             >
-              메인으로
-            </a>
+              전체 보기
+            </button>
           </div>
         </section>
 
@@ -163,8 +197,8 @@ export default function CourtPage() {
             }}
           >
             <div>
-              <div style={labelStyle}>전체 건수</div>
-              <div style={valueStyle}>{Number(data.totalCount).toLocaleString("ko-KR")}건</div>
+              <div style={labelStyle}>적용 지역</div>
+              <div style={valueStyle}>{appliedRegion || "전체"}</div>
             </div>
 
             <div>
@@ -193,7 +227,7 @@ export default function CourtPage() {
             {error}
           </div>
         ) : data.items.length === 0 ? (
-          <div style={cardStyle}>표시할 데이터가 없어요.</div>
+          <div style={cardStyle}>조건에 맞는 데이터가 없어요.</div>
         ) : (
           <div
             style={{
@@ -300,7 +334,7 @@ export default function CourtPage() {
         >
           <button
             onClick={() => {
-              if (page > 1) fetchData(page - 1);
+              if (page > 1) fetchData(page - 1, appliedRegion);
             }}
             disabled={loading || page <= 1}
             style={{
@@ -314,7 +348,7 @@ export default function CourtPage() {
           </button>
 
           <button
-            onClick={() => fetchData(page + 1)}
+            onClick={() => fetchData(page + 1, appliedRegion)}
             disabled={loading}
             style={{
               ...buttonStyle,
