@@ -89,9 +89,9 @@ function formatOnbidMessage(item, alertName) {
 export async function GET(request) {
   try {
     const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-    }
+ if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+   return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+ }
 
     const { getFirebaseAdmin } = await import("@/lib/firebase-admin");
     const db = getFirebaseAdmin();
