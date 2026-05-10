@@ -11,19 +11,6 @@ const REGION_CODE_MAP = {
   제주: "50", 제주도: "50", 제주특별자치도: "50",
 };
 
-const USAGE_CODE_MAP = {
-  아파트: "0001",
-  다세대: "0002",
-  단독주택: "0003",
-  토지: "0004",
-  상가: "0005",
-  오피스텔: "0006",
-  공장: "0007",
-  임야: "0008",
-  근린주택: "0009",
-  다가구: "0010",
-};
-
 function formatDate(value) {
   if (!value) return "";
   const s = String(value);
@@ -47,6 +34,7 @@ function buildAddress(item) {
 }
 
 function mapItem(item) {
+  const usageNm = item.maemulUtilNm || item.lclDspslGdsLstUsgNm || item.mclDspslGdsLstUsgNm || "";
   return {
     사건번호: item.srnSaNo || "",
     물건번호: item.maemulSer || "",
@@ -58,7 +46,7 @@ function mapItem(item) {
     매각기일: formatDate(item.maeGiil),
     담당계: item.jpDeptNm || "",
     비고: item.mulBigo || "",
-    용도: item.maemulUtilNm || item.lclDspslGdsLstUsgNm || "",
+    용도: usageNm,
     용도코드: item.maemulUtilCd || "",
     docid: item.docid || "",
     courtCode: item.boCd || "",
@@ -76,7 +64,7 @@ function findRegionCode(region) {
   return "";
 }
 
-async function fetchCourt(currentPage, pageSize, regionCode = "", usageCode = "") {
+async function fetchCourt(currentPage, pageSize, regionCode = "") {
   const payload = {
     dma_srchGdsDtlSrchInfo: {
       statNum: "000000", cortAuctnMbrsId: "", pgmId: "PGJ157M02",
@@ -84,8 +72,7 @@ async function fetchCourt(currentPage, pageSize, regionCode = "", usageCode = ""
       cortStDvs: regionCode ? "2" : "1", cortOfcCd: "", jdbnCd: "", csNo: "",
       rprsAdongSdCd: regionCode || "", rprsAdongSggCd: "", rprsAdongEmdCd: "",
       rdnmSdCd: "", rdnmSggCd: "", rdnmNo: "",
-      lclDspslGdsLstUsgCd: usageCode || "",
-      mclDspslGdsLstUsgCd: "", sclDspslGdsLstUsgCd: "",
+      lclDspslGdsLstUsgCd: "", mclDspslGdsLstUsgCd: "", sclDspslGdsLstUsgCd: "",
       aeeEvlAmtMin: "", aeeEvlAmtMax: "",
       lwsDspslPrcMin: "", lwsDspslPrcMax: "",
       lwsDspslPrcRateMin: "", lwsDspslPrcRateMax: "",
@@ -102,7 +89,11 @@ async function fetchCourt(currentPage, pageSize, regionCode = "", usageCode = ""
 
   const res = await fetch(SEARCH_URL, {
     method: "POST", cache: "no-store",
-    headers: { "Content-Type": "application/json; charset=UTF-8", Accept: "application/json, text/plain, */*", "User-Agent": "Mozilla/5.0" },
+    headers: {
+      "Content-Type": "application/json; charset=UTF-8",
+      Accept: "application/json, text/plain, */*",
+      "User-Agent": "Mozilla/5.0",
+    },
     body: JSON.stringify(payload),
   });
   return res.json();
@@ -119,22 +110,26 @@ export async function GET(request) {
     const currentPage = Number.isNaN(page) || page < 1 ? 1 : page;
     const pageSize = Number.isNaN(size) || size < 1 ? 10 : size;
     const regionCode = findRegionCode(region);
-    const usageCode = USAGE_CODE_MAP[usage] || "";
 
-    const bulkSize = 50;
-    const data = await fetchCourt(1, bulkSize, regionCode, usageCode);
+    const data = await fetchCourt(1, 100, regionCode);
     const items = Array.isArray(data?.data?.dlt_srchResult) ? data.data.dlt_srchResult : [];
     let mapped = items.map(mapItem);
 
+    // 지역 필터 (코드 없을 때 주소로 필터)
     if (region && !regionCode) {
       mapped = mapped.filter((item) => item.소재지.includes(region));
+    }
+
+    // 용도 필터 (클라이언트에서 용도명으로 필터링)
+    if (usage && usage !== "전체") {
+      mapped = mapped.filter((item) => item.용도.includes(usage));
     }
 
     const startIndex = (currentPage - 1) * pageSize;
     const pagedItems = mapped.slice(startIndex, startIndex + pageSize);
 
     return Response.json({
-      ok: true, region, regionCode, usage, usageCode,
+      ok: true, region, regionCode, usage,
       page: currentPage, size: pageSize,
       rawTotalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
       matchedTotalCount: mapped.length,
