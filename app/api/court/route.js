@@ -11,6 +11,32 @@ const REGION_CODE_MAP = {
   제주: "50", 제주도: "50", 제주특별자치도: "50",
 };
 
+const USAGE_CODE_MAP = {
+  "아파트": "01",
+  "다세대": "02",
+  "단독주택": "03",
+  "다가구": "04",
+  "오피스텔": "05",
+  "상가": "06",
+  "근린주택": "07",
+  "토지": "08",
+  "임야": "09",
+  "공장": "10",
+};
+
+const USAGE_CODE_TO_NAME = {
+  "01": "아파트",
+  "02": "다세대",
+  "03": "단독주택",
+  "04": "다가구",
+  "05": "오피스텔",
+  "06": "상가",
+  "07": "근린주택",
+  "08": "토지",
+  "09": "임야",
+  "10": "공장",
+};
+
 function formatDate(value) {
   if (!value) return "";
   const s = String(value);
@@ -34,7 +60,8 @@ function buildAddress(item) {
 }
 
 function mapItem(item) {
-  const usageNm = item.maemulUtilNm || item.lclDspslGdsLstUsgNm || item.mclDspslGdsLstUsgNm || "";
+  const usageCd = item.maemulUtilCd || "";
+  const usageNm = item.maemulUtilNm || item.lclDspslGdsLstUsgNm || USAGE_CODE_TO_NAME[usageCd] || "";
   return {
     사건번호: item.srnSaNo || "",
     물건번호: item.maemulSer || "",
@@ -47,7 +74,7 @@ function mapItem(item) {
     담당계: item.jpDeptNm || "",
     비고: item.mulBigo || "",
     용도: usageNm,
-    용도코드: item.maemulUtilCd || "",
+    용도코드: usageCd,
     docid: item.docid || "",
     courtCode: item.boCd || "",
     caseNo: item.saNo || "",
@@ -64,7 +91,7 @@ function findRegionCode(region) {
   return "";
 }
 
-async function fetchCourt(currentPage, pageSize, regionCode = "") {
+async function fetchCourt(currentPage, pageSize, regionCode) {
   const payload = {
     dma_srchGdsDtlSrchInfo: {
       statNum: "000000", cortAuctnMbrsId: "", pgmId: "PGJ157M02",
@@ -83,7 +110,7 @@ async function fetchCourt(currentPage, pageSize, regionCode = "") {
     dma_pageInfo: {
       currentPage, pageSize, recordCountPerPage: pageSize,
       firstIndex: 0,
-      lastIndex: 50 ,
+      lastIndex: 50,
     },
   };
 
@@ -115,14 +142,17 @@ export async function GET(request) {
     const items = Array.isArray(data?.data?.dlt_srchResult) ? data.data.dlt_srchResult : [];
     let mapped = items.map(mapItem);
 
-    // 지역 필터 (코드 없을 때 주소로 필터)
     if (region && !regionCode) {
       mapped = mapped.filter((item) => item.소재지.includes(region));
     }
 
-    // 용도 필터 (클라이언트에서 용도명으로 필터링)
     if (usage && usage !== "전체") {
-      mapped = mapped.filter((item) => item.용도.includes(usage));
+      const usageCode = USAGE_CODE_MAP[usage] || "";
+      mapped = mapped.filter((item) => {
+        if (usageCode && item.용도코드 === usageCode) return true;
+        if (item.용도 && item.용도.includes(usage)) return true;
+        return false;
+      });
     }
 
     const startIndex = (currentPage - 1) * pageSize;
