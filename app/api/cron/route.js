@@ -93,7 +93,8 @@ export async function GET(request) {
       return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const { db } = await import("@/lib/firebase-admin");
+    const { getFirebaseAdmin } = await import("@/lib/firebase-admin");
+    const db = getFirebaseAdmin();
     const snapshot = await db.collection("alerts").get();
     let totalSent = 0;
 
