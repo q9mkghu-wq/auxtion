@@ -111,7 +111,7 @@ export async function GET(request) {
     const pageSize = Number.isNaN(size) || size < 1 ? 10 : size;
     const regionCode = findRegionCode(region);
 
-    const data = await fetchCourt(1, 100, regionCode);
+    const data = await fetchCourt(1, 50, regionCode);
     const items = Array.isArray(data?.data?.dlt_srchResult) ? data.data.dlt_srchResult : [];
     let mapped = items.map(mapItem);
 
