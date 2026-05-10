@@ -217,7 +217,7 @@ export default function CourtPage() {
                 </div>
 
                 
-                  href={`https://www.courtauction.go.kr/pgj/pgjdetail/PGJ157M03.on?docid=${item.docid}&cortOfcCd=${item.courtCode}&csNo=${item.caseNo}&mokmulSer=${item.목적물번호}`}
+                href={`https://www.courtauction.go.kr/pgj/pgjdetail/PGJ157M03.on?docid=${item.docid}&cortOfcCd=${item.courtCode}&csNo=${item.caseNo}&mokmulSer=${item.목적물번호}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
