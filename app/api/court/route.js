@@ -82,8 +82,8 @@ async function fetchCourt(currentPage, pageSize, regionCode = "") {
     },
     dma_pageInfo: {
       currentPage, pageSize, recordCountPerPage: pageSize,
-      firstIndex: (currentPage - 1) * pageSize,
-      lastIndex: currentPage * pageSize,
+      firstIndex: 0,
+      lastIndex: 50 ,
     },
   };
 
