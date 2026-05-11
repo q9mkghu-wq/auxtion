@@ -122,35 +122,56 @@ export default function CourtPage() {
           {showFilter && (
             <div style={{ marginTop: 14, background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: 16, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <div>
-                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최저가 최소 (만원)</div>
-                <input
-                  type="number"
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최저가 최소</div>
+                <select
                   value={minPrice}
                   onChange={(e) => setMinPrice(e.target.value)}
-                  placeholder="예: 5000"
-                  style={{ ...s.input, background: "rgba(255,255,255,0.9)" }}
-                />
+                  style={{ ...s.input, background: "rgba(255,255,255,0.9)", cursor: "pointer" }}
+                >
+                  <option value="">제한 없음</option>
+                  <option value="1000">1,000만원↑</option>
+                  <option value="3000">3,000만원↑</option>
+                  <option value="5000">5,000만원↑</option>
+                  <option value="10000">1억↑</option>
+                  <option value="20000">2억↑</option>
+                  <option value="30000">3억↑</option>
+                  <option value="50000">5억↑</option>
+                  <option value="100000">10억↑</option>
+                </select>
               </div>
               <div>
-                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최저가 최대 (만원)</div>
-                <input
-                  type="number"
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최저가 최대</div>
+                <select
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value)}
-                  placeholder="예: 30000"
-                  style={{ ...s.input, background: "rgba(255,255,255,0.9)" }}
-                />
+                  style={{ ...s.input, background: "rgba(255,255,255,0.9)", cursor: "pointer" }}
+                >
+                  <option value="">제한 없음</option>
+                  <option value="5000">5,000만원↓</option>
+                  <option value="10000">1억↓</option>
+                  <option value="20000">2억↓</option>
+                  <option value="30000">3억↓</option>
+                  <option value="50000">5억↓</option>
+                  <option value="100000">10억↓</option>
+                  <option value="200000">20억↓</option>
+                </select>
               </div>
               <div>
-                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최소 유찰수 (회)</div>
-                <input
-                  type="number"
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최소 유찰횟수</div>
+                <select
                   value={minYuchal}
                   onChange={(e) => setMinYuchal(e.target.value)}
-                  placeholder="예: 2"
-                  min="0"
-                  style={{ ...s.input, background: "rgba(255,255,255,0.9)" }}
-                />
+                  style={{ ...s.input, background: "rgba(255,255,255,0.9)", cursor: "pointer" }}
+                >
+                  <option value="">제한 없음</option>
+                  <option value="1">1회↑</option>
+                  <option value="2">2회↑</option>
+                  <option value="3">3회↑</option>
+                  <option value="4">4회↑</option>
+                  <option value="5">5회↑</option>
+                  <option value="7">7회↑</option>
+                  <option value="10">10회↑</option>
+                </select>
               </div>
             </div>
           )}
