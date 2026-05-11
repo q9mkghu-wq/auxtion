@@ -79,7 +79,7 @@ function findRegionCode(region) {
   return "";
 }
 
-async function fetchCourt(currentPage, pageSize, regionCode = "") {
+async function fetchCourt(currentPage, pageSize, regionCode = "", minPriceWon = 0, maxPriceWon = 0) {
   const payload = {
     dma_srchGdsDtlSrchInfo: {
       statNum: "000000", cortAuctnMbrsId: "", pgmId: "PGJ157M02",
@@ -89,7 +89,8 @@ async function fetchCourt(currentPage, pageSize, regionCode = "") {
       rdnmSdCd: "", rdnmSggCd: "", rdnmNo: "",
       lclDspslGdsLstUsgCd: "", mclDspslGdsLstUsgCd: "", sclDspslGdsLstUsgCd: "",
       aeeEvlAmtMin: "", aeeEvlAmtMax: "",
-      lwsDspslPrcMin: "", lwsDspslPrcMax: "",
+      lwsDspslPrcMin: minPriceWon > 0 ? String(minPriceWon) : "",
+      lwsDspslPrcMax: maxPriceWon > 0 ? String(maxPriceWon) : "",
       lwsDspslPrcRateMin: "", lwsDspslPrcRateMax: "",
       flbdNcntMin: "", flbdNcntMax: "",
       objctArDtsMin: "", objctArDtsMax: "",
@@ -128,7 +129,10 @@ export async function GET(request) {
     const pageSize = Number.isNaN(size) || size < 1 ? 10 : size;
     const regionCode = findRegionCode(region);
 
-    const data = await fetchCourt(1, 50, regionCode);
+    const minPriceWon = minPrice > 0 ? minPrice * 10000 : 0;
+    const maxPriceWon = maxPrice > 0 ? maxPrice * 10000 : 0;
+
+    const data = await fetchCourt(1, 50, regionCode, minPriceWon, maxPriceWon);
     const items = Array.isArray(data?.data?.dlt_srchResult) ? data.data.dlt_srchResult : [];
     let mapped = items.map(mapItem);
 
@@ -145,14 +149,6 @@ export async function GET(request) {
         if (item.용도 && item.용도.includes(usage)) return true;
         return false;
       });
-    }
-
-    // 최저가 범위 필터 (만원 단위)
-    if (minPrice > 0) {
-      mapped = mapped.filter((item) => item.최저가Raw >= minPrice * 10000);
-    }
-    if (maxPrice > 0) {
-      mapped = mapped.filter((item) => item.최저가Raw <= maxPrice * 10000);
     }
 
     // 유찰수 필터
