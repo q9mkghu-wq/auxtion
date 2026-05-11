@@ -11,37 +11,23 @@ const REGION_CODE_MAP = {
   제주: "50", 제주도: "50", 제주특별자치도: "50",
 };
 
-const USAGE_CODE_MAP = {
-  "아파트": "01",
-  "다세대": "02",
-  "단독주택": "03",
-  "다가구": "04",
-  "오피스텔": "05",
-  "상가": "06",
-  "근린주택": "07",
-  "토지": "08",
-  "임야": "09",
-  "공장": "10",
+const USAGE_CODE_TO_NAME = {
+  "01": "아파트", "02": "다세대", "03": "단독주택", "04": "다가구",
+  "05": "오피스텔", "06": "상가", "07": "근린주택", "08": "토지",
+  "09": "임야", "10": "공장", "11": "근린시설", "13": "기타",
 };
 
-const USAGE_CODE_TO_NAME = {
-  "01": "아파트",
-  "02": "다세대",
-  "03": "단독주택",
-  "04": "다가구",
-  "05": "오피스텔",
-  "06": "상가",
-  "07": "근린주택",
-  "08": "토지",
-  "09": "임야",
-  "10": "공장",
+const USAGE_NAME_TO_CODE = {
+  "아파트": "01", "다세대": "02", "단독주택": "03", "다가구": "04",
+  "오피스텔": "05", "상가": "06", "근린주택": "07", "토지": "08",
+  "임야": "09", "공장": "10",
 };
 
 function formatDate(value) {
   if (!value) return "";
   const s = String(value);
   if (s.length !== 8) return s;
-  return s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8);
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
 }
 
 function formatPrice(value) {
@@ -69,6 +55,8 @@ function mapItem(item) {
     소재지: buildAddress(item),
     감정가: formatPrice(item.gamevalAmt),
     최저가: formatPrice(item.minmaePrice),
+    감정가Raw: Number(item.gamevalAmt || 0),
+    최저가Raw: Number(item.minmaePrice || 0),
     유찰수: item.yuchalCnt || "0",
     매각기일: formatDate(item.maeGiil),
     담당계: item.jpDeptNm || "",
@@ -91,7 +79,7 @@ function findRegionCode(region) {
   return "";
 }
 
-async function fetchCourt(currentPage, pageSize, regionCode) {
+async function fetchCourt(currentPage, pageSize, regionCode = "") {
   const payload = {
     dma_srchGdsDtlSrchInfo: {
       statNum: "000000", cortAuctnMbrsId: "", pgmId: "PGJ157M02",
@@ -109,8 +97,7 @@ async function fetchCourt(currentPage, pageSize, regionCode) {
     },
     dma_pageInfo: {
       currentPage, pageSize, recordCountPerPage: pageSize,
-      firstIndex: 0,
-      lastIndex: 50,
+      firstIndex: 0, lastIndex: 50,
     },
   };
 
@@ -133,6 +120,9 @@ export async function GET(request) {
     const size = Number(searchParams.get("size") || "10");
     const region = (searchParams.get("region") || "").trim();
     const usage = (searchParams.get("usage") || "").trim();
+    const minPrice = Number(searchParams.get("minPrice") || "0"); // 만원 단위
+    const maxPrice = Number(searchParams.get("maxPrice") || "0"); // 만원 단위
+    const minYuchal = Number(searchParams.get("minYuchal") || "0");
 
     const currentPage = Number.isNaN(page) || page < 1 ? 1 : page;
     const pageSize = Number.isNaN(size) || size < 1 ? 10 : size;
@@ -142,12 +132,14 @@ export async function GET(request) {
     const items = Array.isArray(data?.data?.dlt_srchResult) ? data.data.dlt_srchResult : [];
     let mapped = items.map(mapItem);
 
+    // 지역 필터
     if (region && !regionCode) {
       mapped = mapped.filter((item) => item.소재지.includes(region));
     }
 
+    // 용도 필터
     if (usage && usage !== "전체") {
-      const usageCode = USAGE_CODE_MAP[usage] || "";
+      const usageCode = USAGE_NAME_TO_CODE[usage] || "";
       mapped = mapped.filter((item) => {
         if (usageCode && item.용도코드 === usageCode) return true;
         if (item.용도 && item.용도.includes(usage)) return true;
@@ -155,11 +147,25 @@ export async function GET(request) {
       });
     }
 
+    // 최저가 범위 필터 (만원 단위)
+    if (minPrice > 0) {
+      mapped = mapped.filter((item) => item.최저가Raw >= minPrice * 10000);
+    }
+    if (maxPrice > 0) {
+      mapped = mapped.filter((item) => item.최저가Raw <= maxPrice * 10000);
+    }
+
+    // 유찰수 필터
+    if (minYuchal > 0) {
+      mapped = mapped.filter((item) => Number(item.유찰수) >= minYuchal);
+    }
+
     const startIndex = (currentPage - 1) * pageSize;
     const pagedItems = mapped.slice(startIndex, startIndex + pageSize);
 
     return Response.json({
       ok: true, region, regionCode, usage,
+      minPrice, maxPrice, minYuchal,
       page: currentPage, size: pageSize,
       rawTotalCount: data?.data?.dma_pageInfo?.groupTotalCount || 0,
       matchedTotalCount: mapped.length,
