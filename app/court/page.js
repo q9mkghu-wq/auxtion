@@ -1,223 +1,180 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-function AnalyzeContent() {
-  const searchParams = useSearchParams();
-  const [user, setUser] = useState(null);
-  const [pdfs, setPdfs] = useState([]);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState("");
-  const [telegramChatId, setTelegramChatId] = useState("");
-  const [sent, setSent] = useState(false);
+const USAGE_LIST = ["전체", "아파트", "다세대", "단독주택", "토지", "상가", "오피스텔", "공장", "임야", "근린주택", "다가구"];
 
-  const itemInfo = {
-    사건번호: searchParams.get("사건번호") || "",
-    소재지: searchParams.get("소재지") || "",
-    감정가: searchParams.get("감정가") || "",
-    최저가: searchParams.get("최저가") || "",
-    비율: searchParams.get("비율") || "",
-    유찰수: searchParams.get("유찰수") || "",
-    매각기일: searchParams.get("매각기일") || "",
-    용도: searchParams.get("용도") || "",
-    비고: searchParams.get("비고") || "",
-  };
+export default function CourtPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [keyword, setKeyword] = useState("");
+  const [usage, setUsage] = useState("전체");
+  const [appliedRegion, setAppliedRegion] = useState("");
+  const [appliedUsage, setAppliedUsage] = useState("");
+  const [data, setData] = useState({ totalCount: 0, count: 0, items: [] });
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (u) {
-        fetch(`/api/alert?userId=${u.uid}`)
-          .then((r) => r.json())
-          .then((data) => {
-            if (data.ok && data.telegramChatId) {
-              setTelegramChatId(data.telegramChatId);
-            }
-          });
-      }
-    });
-    return () => unsub();
-  }, []);
-
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    setPdfs((prev) => [...prev, ...files]);
-  };
-
-  const removeFile = (idx) => {
-    setPdfs((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleAnalyze = async (sendTelegram = false) => {
-    if (pdfs.length === 0) {
-      alert("PDF 파일을 먼저 업로드해주세요.");
-      return;
-    }
-    setAnalyzing(true);
-    setAnalysis("");
-
-    const formData = new FormData();
-    formData.append("itemInfo", JSON.stringify(itemInfo));
-    if (sendTelegram && telegramChatId) {
-      formData.append("telegramChatId", telegramChatId);
-    }
-    for (const pdf of pdfs) {
-      formData.append("pdfs", pdf);
-    }
-
+  const fetchData = async (nextPage, nextRegion, nextUsage) => {
     try {
-      const res = await fetch("/api/analyze", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.ok) {
-        setAnalysis(data.analysis);
-        if (sendTelegram) setSent(true);
-      } else {
-        alert("분석 실패: " + data.error);
-      }
+      setLoading(true);
+      setError("");
+      const params = new URLSearchParams({ page: String(nextPage), size: "10" });
+      if (nextRegion && nextRegion.trim()) params.set("region", nextRegion.trim());
+      if (nextUsage && nextUsage !== "전체") params.set("usage", nextUsage);
+      const res = await fetch("/api/court?" + params.toString(), { cache: "no-store" });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "법원 데이터를 불러오지 못했어요.");
+      setData({ totalCount: json.totalCount || 0, count: json.count || 0, items: Array.isArray(json.items) ? json.items : [] });
+      setPage(json.page || nextPage);
+      setAppliedRegion(json.region || "");
+      setAppliedUsage(json.usage || "");
     } catch (err) {
-      alert("오류: " + err.message);
+      setError(err.message || "알 수 없는 오류가 발생했어요.");
     } finally {
-      setAnalyzing(false);
+      setLoading(false);
     }
   };
 
-  const gamjungaNum = Number(itemInfo.감정가.replace(/,/g, ""));
-  const choejeoaNum = Number(itemInfo.최저가.replace(/,/g, ""));
-  const ratio = gamjungaNum ? Math.round((choejeoaNum / gamjungaNum) * 100) : 0;
+  useEffect(() => { fetchData(1, "", "전체"); }, []);
+
+  const handleSearch = () => fetchData(1, keyword, usage);
+
+  const goToAnalyze = (item) => {
+    const g = Number(String(item.감정가).replace(/,/g, ""));
+    const m = Number(String(item.최저가).replace(/,/g, ""));
+    const ratio = g ? Math.round((m / g) * 100) : 0;
+    const params = new URLSearchParams({
+      사건번호: item.사건번호 || "",
+      소재지: item.소재지 || "",
+      감정가: item.감정가 || "",
+      최저가: item.최저가 || "",
+      비율: String(ratio),
+      유찰수: item.유찰수 || "0",
+      매각기일: item.매각기일 || "",
+      용도: item.용도 || "",
+      비고: item.비고 || "",
+    });
+    router.push("/analyze?" + params.toString());
+  };
+
+  const s = {
+    card: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 18, boxShadow: "0 4px 20px rgba(0,0,0,0.05)" },
+    label: { fontSize: 12, color: "#64748b", marginBottom: 4 },
+    value: { fontSize: 15, color: "#111827", fontWeight: 700, wordBreak: "break-word" },
+    btn: { border: "none", borderRadius: 12, padding: "12px 16px", fontWeight: 700, cursor: "pointer" },
+    input: { flex: 1, minWidth: "180px", padding: "12px 14px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" },
+  };
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px", fontFamily: "sans-serif" }}>
-      <a href="/court" style={{ color: "#1976D2", fontSize: 14, textDecoration: "none" }}>← 목록으로</a>
-
-      {/* 물건 기본 정보 */}
-      <div style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", borderRadius: 16, padding: 24, marginTop: 16, color: "#fff" }}>
-        <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 4 }}>사건번호</div>
-        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>{itemInfo.사건번호}</div>
-        <div style={{ fontSize: 16, marginBottom: 16, opacity: 0.9 }}>📍 {itemInfo.소재지}</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 12, opacity: 0.7 }}>감정가</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{itemInfo.감정가}원</div>
+    <main style={{ minHeight: "100vh", background: "#f8fafc", padding: "24px", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+        <section style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", color: "#fff", borderRadius: 20, padding: 28, marginBottom: 24 }}>
+          <h1 style={{ margin: 0, fontSize: 32, fontWeight: 700 }}>법원경매 검색</h1>
+          <p style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6, opacity: 0.95 }}>지역과 용도로 필터링하고 AI로 물건을 분석하세요.</p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+            <input value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }} placeholder="지역 검색 (예: 서울, 경기)" style={s.input} />
+            <select value={usage} onChange={(e) => setUsage(e.target.value)} style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", cursor: "pointer" }}>
+              {USAGE_LIST.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+            <button onClick={handleSearch} style={{ ...s.btn, background: "#fff", color: "#0f172a" }}>검색</button>
+            <button onClick={() => { setKeyword(""); setUsage("전체"); fetchData(1, "", "전체"); }} style={{ ...s.btn, background: "#111827", color: "#fff" }}>전체 보기</button>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 12, opacity: 0.7 }}>최저가</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#fbbf24" }}>{itemInfo.최저가}원</div>
-            <div style={{ fontSize: 12, color: "#fbbf24" }}>감정가의 {ratio}%</div>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 12, opacity: 0.7 }}>유찰수</div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{itemInfo.유찰수}회</div>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 12, opacity: 0.7 }}>매각기일</div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{itemInfo.매각기일}</div>
-          </div>
-        </div>
-        {itemInfo.용도 && (
-          <div style={{ marginTop: 12, background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: 12 }}>
-            <span style={{ fontSize: 12, opacity: 0.7 }}>용도: </span>
-            <span style={{ fontSize: 14, fontWeight: 600 }}>{itemInfo.용도}</span>
-          </div>
-        )}
-        {itemInfo.비고 && (
-          <div style={{ marginTop: 12, background: "rgba(255,100,100,0.2)", borderRadius: 10, padding: 12 }}>
-            <span style={{ fontSize: 12, opacity: 0.7 }}>비고: </span>
-            <span style={{ fontSize: 14 }}>{itemInfo.비고}</span>
-          </div>
-        )}
-      </div>
-
-      {/* PDF 업로드 */}
-      <div style={{ background: "#f8f8f8", borderRadius: 16, padding: 20, marginTop: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>📄 문서 업로드</h2>
-        <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>매각물건명세서, 현황조사서, 감정평가서 PDF를 업로드하면 AI가 분석해드려요.</p>
-
-        <label style={{
-          display: "block", border: "2px dashed #ccc", borderRadius: 12,
-          padding: "24px", textAlign: "center", cursor: "pointer", color: "#888"
-        }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📎</div>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>PDF 파일 선택</div>
-          <div style={{ fontSize: 12, marginTop: 4 }}>여러 파일 동시 선택 가능</div>
-          <input type="file" accept=".pdf" multiple onChange={handleFileChange} style={{ display: "none" }} />
-        </label>
-
-        {pdfs.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            {pdfs.map((pdf, idx) => (
-              <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderRadius: 8, padding: "10px 14px", marginBottom: 8, border: "1px solid #eee" }}>
-                <span style={{ fontSize: 14 }}>📄 {pdf.name}</span>
-                <button onClick={() => removeFile(idx)} style={{ background: "none", border: "none", color: "#e53935", cursor: "pointer", fontSize: 18 }}>✕</button>
-              </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+            {USAGE_LIST.filter((u) => u !== "전체").map((u) => (
+              <button key={u} onClick={() => { setUsage(u); fetchData(1, keyword, u); }} style={{ padding: "6px 14px", borderRadius: 999, border: "none", fontSize: 13, cursor: "pointer", fontWeight: 600, background: usage === u ? "#fff" : "rgba(255,255,255,0.2)", color: usage === u ? "#0f172a" : "#fff" }}>{u}</button>
             ))}
           </div>
-        )}
-      </div>
+        </section>
 
-      {/* 텔레그램 Chat ID */}
-      <div style={{ background: "#f0f4ff", borderRadius: 16, padding: 20, marginTop: 16 }}>
-        <label style={{ fontSize: 14, fontWeight: 600, display: "block", marginBottom: 8 }}>📱 텔레그램 Chat ID (분석 결과 전송용)</label>
-        <input
-          value={telegramChatId}
-          onChange={(e) => setTelegramChatId(e.target.value)}
-          placeholder="예: 7974741043"
-          style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd", fontSize: 14, boxSizing: "border-box" }}
-        />
-      </div>
-
-      {/* 버튼 */}
-      <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-        <button
-          onClick={() => handleAnalyze(false)}
-          disabled={analyzing || pdfs.length === 0}
-          style={{
-            flex: 1, padding: 16, background: analyzing ? "#ccc" : "#1976D2",
-            color: "#fff", border: "none", borderRadius: 12, fontSize: 16,
-            fontWeight: 700, cursor: analyzing ? "not-allowed" : "pointer"
-          }}
-        >
-          {analyzing ? "⏳ AI 분석 중..." : "🤖 AI 분석하기"}
-        </button>
-        <button
-          onClick={() => handleAnalyze(true)}
-          disabled={analyzing || pdfs.length === 0 || !telegramChatId}
-          style={{
-            flex: 1, padding: 16, background: analyzing || !telegramChatId ? "#ccc" : "#00897B",
-            color: "#fff", border: "none", borderRadius: 12, fontSize: 16,
-            fontWeight: 700, cursor: "pointer"
-          }}
-        >
-          📨 분석 후 텔레그램 전송
-        </button>
-      </div>
-
-      {sent && (
-        <div style={{ background: "#e8f5e9", borderRadius: 12, padding: 14, marginTop: 16, color: "#2e7d32", fontWeight: 600, textAlign: "center" }}>
-          ✅ 텔레그램으로 전송 완료!
-        </div>
-      )}
-
-      {/* AI 분석 결과 */}
-      {analysis && (
-        <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 16, padding: 24, marginTop: 20 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>🤖 AI 분석 결과</h2>
-          <div style={{ fontSize: 15, lineHeight: 1.8, whiteSpace: "pre-wrap", color: "#333" }}>
-            {analysis}
+        <section style={{ ...s.card, marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div><div style={s.label}>적용 지역</div><div style={s.value}>{appliedRegion || "전체"}</div></div>
+            <div><div style={s.label}>적용 용도</div><div style={s.value}>{appliedUsage || "전체"}</div></div>
+            <div><div style={s.label}>현재 페이지</div><div style={s.value}>{page}</div></div>
+            <div><div style={s.label}>표시 건수</div><div style={s.value}>{data.count}건</div></div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+        </section>
 
-export default function AnalyzePage() {
-  return (
-    <Suspense fallback={<div style={{ padding: 24 }}>로딩 중...</div>}>
-      <AnalyzeContent />
-    </Suspense>
+        {loading ? (
+          <div style={s.card}>불러오는 중...</div>
+        ) : error ? (
+          <div style={{ ...s.card, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b" }}>{error}</div>
+        ) : data.items.length === 0 ? (
+          <div style={s.card}>조건에 맞는 데이터가 없어요.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+            {data.items.map((item, index) => {
+              const g = Number(String(item.감정가).replace(/,/g, ""));
+              const m = Number(String(item.최저가).replace(/,/g, ""));
+              const ratio = g ? Math.round((m / g) * 100) : 0;
+              const isLow = ratio > 0 && ratio < 50;
+              const highYuchal = Number(item.유찰수) >= 3;
+
+              return (
+                <article key={item.docid + "-" + index} style={s.card}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                    <div>
+                      <div style={s.label}>사건번호</div>
+                      <div style={s.value}>{item.사건번호 || "-"}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      {item.용도 && <span style={{ background: "#fef3c7", color: "#92400e", borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{item.용도}</span>}
+                      {isLow && <span style={{ background: "#fee2e2", color: "#991b1b", borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>저가</span>}
+                      {highYuchal && <span style={{ background: "#fce7f3", color: "#9d174d", borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{item.유찰수}회 유찰</span>}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={s.label}>소재지</div>
+                    <div style={{ ...s.value, lineHeight: 1.5 }}>{item.소재지 || "-"}</div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                    <div style={{ background: "#f8fafc", borderRadius: 8, padding: 10 }}>
+                      <div style={s.label}>감정가</div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{item.감정가 ? item.감정가 + "원" : "-"}</div>
+                    </div>
+                    <div style={{ background: isLow ? "#fef3c7" : "#f8fafc", borderRadius: 8, padding: 10 }}>
+                      <div style={s.label}>최저가</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isLow ? "#92400e" : "#111" }}>{item.최저가 ? item.최저가 + "원" : "-"}</div>
+                      {ratio > 0 && <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>감정가의 {ratio}%</div>}
+                    </div>
+                    <div style={{ background: "#f8fafc", borderRadius: 8, padding: 10 }}>
+                      <div style={s.label}>유찰수</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: highYuchal ? "#dc2626" : "#111" }}>{item.유찰수 || "0"}회</div>
+                    </div>
+                    <div style={{ background: "#f8fafc", borderRadius: 8, padding: 10 }}>
+                      <div style={s.label}>매각기일</div>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>{item.매각기일 || "-"}</div>
+                    </div>
+                  </div>
+
+                  {item.비고 && (
+                    <div style={{ background: "#fef2f2", borderRadius: 8, padding: 10, marginBottom: 10 }}>
+                      <div style={s.label}>비고</div>
+                      <div style={{ fontSize: 13, color: "#991b1b" }}>{item.비고}</div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => goToAnalyze(item)}
+                    style={{ width: "100%", padding: 13, background: "linear-gradient(135deg, #1976D2, #1e3a8a)", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                  >
+                    🤖 AI 분석하기
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
+          <button onClick={() => { if (page > 1) fetchData(page - 1, appliedRegion, appliedUsage); }} disabled={loading || page <= 1} style={{ ...s.btn, background: page <= 1 ? "#cbd5e1" : "#e5e7eb", color: "#111827", cursor: page <= 1 ? "not-allowed" : "pointer" }}>이전 페이지</button>
+          <button onClick={() => fetchData(page + 1, appliedRegion, appliedUsage)} disabled={loading} style={{ ...s.btn, background: "#4f46e5", color: "#fff" }}>다음 페이지</button>
+        </div>
+      </div>
+    </main>
   );
 }
