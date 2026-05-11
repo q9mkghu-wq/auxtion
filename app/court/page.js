@@ -97,13 +97,30 @@ export default function CourtPage() {
 
           {/* 기본 검색 */}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
-            <input
+            <select
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
-              placeholder="지역 검색 (예: 서울, 경기, 의정부)"
-              style={{ flex: 1, minWidth: 180, padding: "12px 14px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" }}
-            />
+              style={{ flex: 1, minWidth: 180, padding: "12px 14px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", cursor: "pointer" }}
+            >
+              <option value="">전국</option>
+              <option value="서울">서울</option>
+              <option value="경기">경기</option>
+              <option value="인천">인천</option>
+              <option value="부산">부산</option>
+              <option value="대구">대구</option>
+              <option value="대전">대전</option>
+              <option value="광주">광주</option>
+              <option value="울산">울산</option>
+              <option value="세종">세종</option>
+              <option value="강원">강원</option>
+              <option value="충북">충북</option>
+              <option value="충남">충남</option>
+              <option value="전북">전북</option>
+              <option value="전남">전남</option>
+              <option value="경북">경북</option>
+              <option value="경남">경남</option>
+              <option value="제주">제주</option>
+            </select>
             <select value={usage} onChange={(e) => setUsage(e.target.value)} style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", cursor: "pointer" }}>
               {USAGE_LIST.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
@@ -176,16 +193,6 @@ export default function CourtPage() {
             </div>
           )}
 
-          {/* 용도 빠른 선택 */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-            {USAGE_LIST.filter((u) => u !== "전체").map((u) => (
-              <button key={u} onClick={() => { setUsage(u); fetchData(1, keyword, u, minPrice, maxPrice, minYuchal); }} style={{
-                padding: "6px 14px", borderRadius: 999, border: "none", fontSize: 13, cursor: "pointer", fontWeight: 600,
-                background: usage === u ? "#fff" : "rgba(255,255,255,0.2)",
-                color: usage === u ? "#0f172a" : "#fff",
-              }}>{u}</button>
-            ))}
-          </div>
         </section>
 
         {/* 검색 결과 요약 */}
