@@ -85,9 +85,9 @@ function AnalyzeContent() {
     }
   };
 
-  const감정가Num = Number(itemInfo.감정가.replace(/,/g, ""));
-  const최저가Num = Number(itemInfo.최저가.replace(/,/g, ""));
-  const ratio = 감정가Num ? Math.round((최저가Num / 감정가Num) * 100) : 0;
+  const gamjungaNum = Number(itemInfo.감정가.replace(/,/g, ""));
+  const choejeoaNum = Number(itemInfo.최저가.replace(/,/g, ""));
+  const ratio = gamjungaNum ? Math.round((choejeoaNum / gamjungaNum) * 100) : 0;
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px", fontFamily: "sans-serif" }}>
