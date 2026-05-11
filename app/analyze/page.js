@@ -91,7 +91,6 @@ function AnalyzeContent() {
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px", fontFamily: "sans-serif" }}>
-      <a href="/court" style={{ color: "#1976D2", fontSize: 14, textDecoration: "none" }}>← 목록으로</a>
 
       {/* 물건 기본 정보 */}
       <div style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", borderRadius: 16, padding: 24, marginTop: 16, color: "#fff" }}>
@@ -129,6 +128,10 @@ function AnalyzeContent() {
             <span style={{ fontSize: 14 }}>{itemInfo.비고}</span>
           </div>
         )}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <a href="/court" style={{ flex: 1, padding: "10px", background: "rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, textAlign: "center", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>← 목록으로</a>
+        <a href="https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ151F00.xml#" target="_blank" rel="noopener noreferrer" style={{ flex: 1, padding: "10px", background: "rgba(255,255,255,0.15)", color: "#fff", borderRadius: 10, textAlign: "center", fontWeight: 600, fontSize: 14, textDecoration: "none", border: "1px solid rgba(255,255,255,0.3)" }}>🏛 법원경매 사이트</a>
       </div>
 
       {/* PDF 업로드 */}
