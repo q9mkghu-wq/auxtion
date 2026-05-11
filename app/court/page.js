@@ -12,21 +12,34 @@ export default function CourtPage() {
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState("");
   const [usage, setUsage] = useState("전체");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [minYuchal, setMinYuchal] = useState("");
+  const [showFilter, setShowFilter] = useState(false);
   const [appliedRegion, setAppliedRegion] = useState("");
   const [appliedUsage, setAppliedUsage] = useState("");
-  const [data, setData] = useState({ totalCount: 0, count: 0, items: [] });
+  const [data, setData] = useState({ totalCount: 0, count: 0, items: [], matchedTotalCount: 0 });
 
-  const fetchData = async (nextPage, nextRegion, nextUsage) => {
+  const fetchData = async (nextPage, nextRegion, nextUsage, nextMinPrice, nextMaxPrice, nextMinYuchal) => {
     try {
       setLoading(true);
       setError("");
       const params = new URLSearchParams({ page: String(nextPage), size: "10" });
       if (nextRegion && nextRegion.trim()) params.set("region", nextRegion.trim());
       if (nextUsage && nextUsage !== "전체") params.set("usage", nextUsage);
+      if (nextMinPrice) params.set("minPrice", nextMinPrice);
+      if (nextMaxPrice) params.set("maxPrice", nextMaxPrice);
+      if (nextMinYuchal) params.set("minYuchal", nextMinYuchal);
+
       const res = await fetch("/api/court?" + params.toString(), { cache: "no-store" });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || "법원 데이터를 불러오지 못했어요.");
-      setData({ totalCount: json.totalCount || 0, count: json.count || 0, items: Array.isArray(json.items) ? json.items : [] });
+      setData({
+        totalCount: json.totalCount || 0,
+        count: json.count || 0,
+        items: Array.isArray(json.items) ? json.items : [],
+        matchedTotalCount: json.matchedTotalCount || 0,
+      });
       setPage(json.page || nextPage);
       setAppliedRegion(json.region || "");
       setAppliedUsage(json.usage || "");
@@ -37,9 +50,15 @@ export default function CourtPage() {
     }
   };
 
-  useEffect(() => { fetchData(1, "", "전체"); }, []);
+  useEffect(() => { fetchData(1, "", "전체", "", "", ""); }, []);
 
-  const handleSearch = () => fetchData(1, keyword, usage);
+  const handleSearch = () => fetchData(1, keyword, usage, minPrice, maxPrice, minYuchal);
+
+  const handleReset = () => {
+    setKeyword(""); setUsage("전체");
+    setMinPrice(""); setMaxPrice(""); setMinYuchal("");
+    fetchData(1, "", "전체", "", "", "");
+  };
 
   const goToAnalyze = (item) => {
     const g = Number(String(item.감정가).replace(/,/g, ""));
@@ -64,45 +83,113 @@ export default function CourtPage() {
     label: { fontSize: 12, color: "#64748b", marginBottom: 4 },
     value: { fontSize: 15, color: "#111827", fontWeight: 700, wordBreak: "break-word" },
     btn: { border: "none", borderRadius: 12, padding: "12px 16px", fontWeight: 700, cursor: "pointer" },
-    input: { flex: 1, minWidth: "180px", padding: "12px 14px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" },
+    input: { padding: "10px 14px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box", width: "100%" },
   };
 
   return (
     <main style={{ minHeight: "100vh", background: "#f8fafc", padding: "24px", fontFamily: "Arial, sans-serif" }}>
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+
+        {/* 검색 헤더 */}
         <section style={{ background: "linear-gradient(135deg, #0f172a, #1e3a8a)", color: "#fff", borderRadius: 20, padding: 28, marginBottom: 24 }}>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 700 }}>법원경매 검색</h1>
-          <p style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6, opacity: 0.95 }}>지역과 용도로 필터링하고 AI로 물건을 분석하세요.</p>
+          <p style={{ marginTop: 10, fontSize: 15, lineHeight: 1.6, opacity: 0.95 }}>지역, 용도, 가격으로 필터링하고 AI로 물건을 분석하세요.</p>
+
+          {/* 기본 검색 */}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
-            <input value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }} placeholder="지역 검색 (예: 서울, 경기)" style={s.input} />
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+              placeholder="지역 검색 (예: 서울, 경기, 의정부)"
+              style={{ flex: 1, minWidth: 180, padding: "12px 14px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, boxSizing: "border-box" }}
+            />
             <select value={usage} onChange={(e) => setUsage(e.target.value)} style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid #cbd5e1", fontSize: 14, background: "#fff", cursor: "pointer" }}>
               {USAGE_LIST.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
             <button onClick={handleSearch} style={{ ...s.btn, background: "#fff", color: "#0f172a" }}>검색</button>
-            <button onClick={() => { setKeyword(""); setUsage("전체"); fetchData(1, "", "전체"); }} style={{ ...s.btn, background: "#111827", color: "#fff" }}>전체 보기</button>
+            <button onClick={handleReset} style={{ ...s.btn, background: "#111827", color: "#fff" }}>초기화</button>
           </div>
+
+          {/* 상세 필터 토글 */}
+          <button
+            onClick={() => setShowFilter(!showFilter)}
+            style={{ marginTop: 14, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, padding: "8px 16px", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+          >
+            {showFilter ? "▲ 상세 필터 닫기" : "▼ 상세 필터 (가격, 유찰수)"}
+          </button>
+
+          {showFilter && (
+            <div style={{ marginTop: 14, background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: 16, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최저가 최소 (만원)</div>
+                <input
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder="예: 5000"
+                  style={{ ...s.input, background: "rgba(255,255,255,0.9)" }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최저가 최대 (만원)</div>
+                <input
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="예: 30000"
+                  style={{ ...s.input, background: "rgba(255,255,255,0.9)" }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>최소 유찰수 (회)</div>
+                <input
+                  type="number"
+                  value={minYuchal}
+                  onChange={(e) => setMinYuchal(e.target.value)}
+                  placeholder="예: 2"
+                  min="0"
+                  style={{ ...s.input, background: "rgba(255,255,255,0.9)" }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 용도 빠른 선택 */}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
             {USAGE_LIST.filter((u) => u !== "전체").map((u) => (
-              <button key={u} onClick={() => { setUsage(u); fetchData(1, keyword, u); }} style={{ padding: "6px 14px", borderRadius: 999, border: "none", fontSize: 13, cursor: "pointer", fontWeight: 600, background: usage === u ? "#fff" : "rgba(255,255,255,0.2)", color: usage === u ? "#0f172a" : "#fff" }}>{u}</button>
+              <button key={u} onClick={() => { setUsage(u); fetchData(1, keyword, u, minPrice, maxPrice, minYuchal); }} style={{
+                padding: "6px 14px", borderRadius: 999, border: "none", fontSize: 13, cursor: "pointer", fontWeight: 600,
+                background: usage === u ? "#fff" : "rgba(255,255,255,0.2)",
+                color: usage === u ? "#0f172a" : "#fff",
+              }}>{u}</button>
             ))}
           </div>
         </section>
 
+        {/* 검색 결과 요약 */}
         <section style={{ ...s.card, marginBottom: 20 }}>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <div><div style={s.label}>적용 지역</div><div style={s.value}>{appliedRegion || "전체"}</div></div>
-            <div><div style={s.label}>적용 용도</div><div style={s.value}>{appliedUsage || "전체"}</div></div>
-            <div><div style={s.label}>현재 페이지</div><div style={s.value}>{page}</div></div>
-            <div><div style={s.label}>표시 건수</div><div style={s.value}>{data.count}건</div></div>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <div><div style={s.label}>지역</div><div style={s.value}>{appliedRegion || "전체"}</div></div>
+            <div><div style={s.label}>용도</div><div style={s.value}>{appliedUsage || "전체"}</div></div>
+            {minPrice && <div><div style={s.label}>최저가 최소</div><div style={s.value}>{Number(minPrice).toLocaleString()}만원</div></div>}
+            {maxPrice && <div><div style={s.label}>최저가 최대</div><div style={s.value}>{Number(maxPrice).toLocaleString()}만원</div></div>}
+            {minYuchal && <div><div style={s.label}>최소 유찰</div><div style={s.value}>{minYuchal}회↑</div></div>}
+            <div><div style={s.label}>표시</div><div style={s.value}>{data.count}건 / 총 {data.matchedTotalCount}건</div></div>
           </div>
         </section>
 
+        {/* 물건 목록 */}
         {loading ? (
           <div style={s.card}>불러오는 중...</div>
         ) : error ? (
           <div style={{ ...s.card, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b" }}>{error}</div>
         ) : data.items.length === 0 ? (
-          <div style={s.card}>조건에 맞는 데이터가 없어요.</div>
+          <div style={{ ...s.card, textAlign: "center", padding: 40 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 16, color: "#888" }}>조건에 맞는 물건이 없어요.</div>
+            <button onClick={handleReset} style={{ marginTop: 16, ...s.btn, background: "#1976D2", color: "#fff" }}>필터 초기화</button>
+          </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
             {data.items.map((item, index) => {
@@ -122,7 +209,7 @@ export default function CourtPage() {
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
                       {item.용도 && <span style={{ background: "#fef3c7", color: "#92400e", borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{item.용도}</span>}
                       {isLow && <span style={{ background: "#fee2e2", color: "#991b1b", borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>저가</span>}
-                      {highYuchal && <span style={{ background: "#fce7f3", color: "#9d174d", borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{item.유찰수}회 유찰</span>}
+                      {highYuchal && <span style={{ background: "#fce7f3", color: "#9d174d", borderRadius: 999, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{item.유찰수}회↓</span>}
                     </div>
                   </div>
 
@@ -171,9 +258,10 @@ export default function CourtPage() {
         )}
 
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
-          <button onClick={() => { if (page > 1) fetchData(page - 1, appliedRegion, appliedUsage); }} disabled={loading || page <= 1} style={{ ...s.btn, background: page <= 1 ? "#cbd5e1" : "#e5e7eb", color: "#111827", cursor: page <= 1 ? "not-allowed" : "pointer" }}>이전 페이지</button>
-          <button onClick={() => fetchData(page + 1, appliedRegion, appliedUsage)} disabled={loading} style={{ ...s.btn, background: "#4f46e5", color: "#fff" }}>다음 페이지</button>
+          <button onClick={() => { if (page > 1) fetchData(page - 1, appliedRegion, appliedUsage, minPrice, maxPrice, minYuchal); }} disabled={loading || page <= 1} style={{ ...s.btn, background: page <= 1 ? "#cbd5e1" : "#e5e7eb", color: "#111827", cursor: page <= 1 ? "not-allowed" : "pointer" }}>이전 페이지</button>
+          <button onClick={() => fetchData(page + 1, appliedRegion, appliedUsage, minPrice, maxPrice, minYuchal)} disabled={loading} style={{ ...s.btn, background: "#4f46e5", color: "#fff" }}>다음 페이지</button>
         </div>
+
       </div>
     </main>
   );
