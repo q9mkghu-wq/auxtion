@@ -273,12 +273,20 @@ export default function CourtPage() {
                     </div>
                   )}
 
-                  <button
-                    onClick={() => goToAnalyze(item)}
-                    style={{ width: "100%", padding: 13, background: "linear-gradient(135deg, #1976D2, #1e3a8a)", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 15, cursor: "pointer" }}
-                  >
-                    🤖 AI 분석하기
-                  </button>
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    <button
+                      onClick={() => goToAnalyze(item)}
+                      style={{ flex: 1, padding: 13, background: "linear-gradient(135deg, #1976D2, #1e3a8a)", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+                    >
+                      🤖 AI 분석
+                    </button>
+                    <button
+                      onClick={() => window.open("https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ151F00.xml#", "_blank")}
+                      style={{ flex: 1, padding: 13, background: "#fff", color: "#1976D2", border: "2px solid #1976D2", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+                    >
+                      🏛 법원경매
+                    </button>
+                  </div>
                 </article>
               );
             })}
